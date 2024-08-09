@@ -19,7 +19,7 @@ class TakePicturePage extends StatefulWidget {
 class _TakePicturePageState extends State<TakePicturePage>
     with TickerProviderStateMixin {
   final ImageController imageController = Get.put(ImageController());
-  int _countdown = 3;
+  int _countdown = 5;
   Timer? _timer;
   int _picturesTaken = 0;
   int? _selectedType;
@@ -105,7 +105,7 @@ class _TakePicturePageState extends State<TakePicturePage>
                             key: cameraKey,
                             child: GstPlayer(
                               pipeline:
-                                  '''v4l2src device=/dev/video0 ! videoconvert ! videoflip method=horizontal-flip ! videoscale ! video/x-raw,width=525,height=700,format=RGBA ! appsink name=sink''',
+                                  '''v4l2src device=/dev/video0 ! videoconvert ! videoflip method=horizontal-flip ! videoflip method=clockwise ! videoscale ! video/x-raw,width=1920,height=1080,format=RGBA ! appsink name=sink''',
                             ),
                           ),
                           if (_takingPicture) _buildOverlay(),
@@ -158,7 +158,7 @@ class _TakePicturePageState extends State<TakePicturePage>
 
   void _takePicture() {
     setState(() {
-      _countdown = 3;
+      _countdown = 5;
       _takingPicture = true;
     });
 
