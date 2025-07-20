@@ -1,0 +1,32 @@
+#!/bin/sh
+# Linux Photo Booth Launcher for Ubuntu Core
+# This script sets up the environment and launches the photo booth application
+
+# Display environment variables
+export DISPLAY="${DISPLAY:-:0}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/1000}"
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+export XDG_SESSION_TYPE="${XDG_SESSION_TYPE:-wayland}"
+
+# GStreamer configuration
+export GST_PLUGIN_PATH="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gstreamer-1.0"
+export GST_PLUGIN_SCANNER="$SNAP/usr/libexec/gstreamer-1.0/gst-plugin-scanner"
+export GST_REGISTRY_FORK=no
+
+# Library paths
+export LD_LIBRARY_PATH="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$SNAP/lib"
+
+# PATH
+export PATH="$SNAP/usr/bin:$SNAP/bin:$PATH"
+
+# Debug logging (optional)
+if [ "$DEBUG" = "1" ]; then
+    echo "Launching Linux Photo Booth with environment:"
+    echo "DISPLAY: $DISPLAY"
+    echo "WAYLAND_DISPLAY: $WAYLAND_DISPLAY"
+    echo "GST_PLUGIN_PATH: $GST_PLUGIN_PATH"
+    echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+fi
+
+# Launch the application
+exec "$SNAP/linux_photo_booth" "$@" 
