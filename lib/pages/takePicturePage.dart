@@ -77,11 +77,10 @@ class _TakePicturePageState extends State<TakePicturePage>
               'Pictures Taken: $_picturesTaken / $_selectedType',
               style: Theme.of(context).textTheme.titleLarge,
             ),
+            SizedBox(height: 20),
             _countdown > 0
-                ? Positioned(
-                    top: 10,
-                    left: 0,
-                    right: 0,
+                ? Container(
+                    padding: EdgeInsets.symmetric(vertical: 10),
                     child: Center(
                       child: Text(
                         '$_countdown seconds left',
@@ -89,7 +88,7 @@ class _TakePicturePageState extends State<TakePicturePage>
                       ),
                     ),
                   )
-                : SizedBox(),
+                : SizedBox(height: 44),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(

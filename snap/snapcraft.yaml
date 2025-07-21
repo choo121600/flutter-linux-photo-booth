@@ -18,29 +18,35 @@ description: |
 
 grade: stable
 confinement: strict
+base: core24
 
-base: core22
-
-architectures:
-  - build-on: amd64
-    run-on: amd64
-  - build-on: arm64
-    run-on: arm64
+platforms:
+  amd64:
+  arm64:
 
 apps:
   linux-photo-booth:
     command: bin/run-booth
+    extensions: [gnome]
     plugs:
       - camera
       - cups-control
       - network
       - network-bind
       - home
+      - audio-playback
       - desktop
       - desktop-legacy
-      - gsettings
       - wayland
-    desktop: linux-photo-booth.desktop
+      - x11
+      - opengl
+    desktop: usr/share/applications/linux-photo-booth.desktop
+    environment:
+      FLUTTER_ENGINE_RUNTIME_MODE: release
+      FLUTTER_ENGINE_SWITCH_TO_IMPELLER: "0"
+      GTK_USE_PORTAL: "0"
+      GTK_A11Y: "none"
+      GDK_BACKEND: "x11,wayland"
 
   photo-booth-server:
     command: bin/server.py
@@ -53,111 +59,107 @@ apps:
     restart-condition: always
 
 parts:
-  flutter-sdk:
-    plugin: nil
-    source: https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.24.5-stable.tar.xz
-    source-type: tar
-    override-build: |
-      snapcraftctl build
-      chmod -R +w $SNAPCRAFT_PART_INSTALL
-
   flutter-app:
-    plugin: cmake
+    plugin: flutter
     source: .
-    after: [flutter-sdk]
+    flutter-target: lib/main.dart
+    override-build: |
+      # Remove problematic pubspec.lock to avoid platform conflicts
+      rm -f pubspec.lock
+      
+      # Run default flutter build
+      snapcraftctl build
     build-packages:
-      - build-essential
-      - cmake
-      - ninja-build
-      - pkg-config
+      # Essential build tools (Flutter plugin will handle most of these)
       - libgtk-3-dev
-      - libx11-dev
-      - libxcursor-dev
-      - libxrandr-dev
-      - libxss-dev
-      - libasound2-dev
-      - libpulse-dev
-      - libdrm-dev
-      - libgles2-mesa-dev
-      - libegl1-mesa-dev
       - libgstreamer1.0-dev
       - libgstreamer-plugins-base1.0-dev
-      - gstreamer1.0-plugins-base
-      - gstreamer1.0-plugins-good
-      - gstreamer1.0-plugins-bad
-      - gstreamer1.0-plugins-ugly
-      - gstreamer1.0-libav
-      - gstreamer1.0-tools
       - libv4l-dev
-      - v4l-utils
       - libcups2-dev
-      - python3-dev
-      - python3-pip
-      - libwayland-dev
-      - libxkbcommon-dev
     stage-packages:
+      # Core GTK and graphics libraries
+      - libgtk-3-0
+      - libgtk-3-common
+      - libgdk-pixbuf2.0-0
+      - libgdk-pixbuf2.0-common
+      - libglib2.0-0
+      - libcairo2
+      - libcairo-gobject2
+      - libpango-1.0-0
+      - libpangocairo-1.0-0
+      - libharfbuzz0b
+      - libatk1.0-0
+      - libatk-bridge2.0-0
+      - libjpeg8
+      - libpng16-16
+      - libtiff6
+      - librsvg2-2
+      - librsvg2-common
+      
+      # GStreamer essentials for camera
       - libgstreamer1.0-0
       - libgstreamer-plugins-base1.0-0
-      - gstreamer1.0-plugins-base
       - gstreamer1.0-plugins-good
       - gstreamer1.0-plugins-bad
-      - gstreamer1.0-plugins-ugly
       - gstreamer1.0-libav
-      - gstreamer1.0-tools
+      
+      # Camera and video support
       - libv4l-0
       - v4l-utils
-      - cups
-      - cups-client
+      
+      # Printing support
       - libcups2
-      - python3
-      - python3-pip
+      
+      # X11 essentials
+      - libx11-6
+      - libxcursor1
+      - libxrandr2
+      - libxi6
+      - libxinerama1
+      - libxext6
+      - libxfixes3
+      - libxdamage1
+      - libxcomposite1
+      
+      # Wayland support
       - libwayland-client0
       - libwayland-cursor0
       - libwayland-egl1
       - libxkbcommon0
-    override-build: |
-      export PATH="$SNAPCRAFT_STAGE/flutter/bin:$PATH"
       
-      export PUB_CACHE="$SNAPCRAFT_PART_BUILD/.pub-cache"
-      
-      flutter config --no-analytics
-      flutter pub get
-      flutter build linux --release
-      
-      cp -r build/linux/x64/release/bundle/* $SNAPCRAFT_PART_INSTALL/
-      
-      chmod +x $SNAPCRAFT_PART_INSTALL/linux_photo_booth
+      # Additional GTK dependencies
+      - adwaita-icon-theme
+      - hicolor-icon-theme
+      - shared-mime-info
 
   python-server:
     plugin: python
     source: .
-    requirements:
-      - Flask==3.0.3
-      - pycups==2.0.1
+    python-requirements:
+      - requirement.txt
     stage-packages:
-      - python3
-      - python3-pip
       - cups
       - cups-client
-      - libcups2
-    organize:
-      server.py: bin/server.py
+    override-build: |
+      snapcraftctl build
+      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
+      cp server.py $SNAPCRAFT_PART_INSTALL/bin/server.py
+      chmod +x $SNAPCRAFT_PART_INSTALL/bin/server.py
 
   desktop-file:
     plugin: dump
-    source: snap/desktop
+    source: snap/local/desktop/
     organize:
       linux-photo-booth.desktop: usr/share/applications/linux-photo-booth.desktop
 
   launcher:
     plugin: dump
-    source: snap/local
+    source: snap/local/
     organize:
       run-booth: bin/run-booth
 
-  # Configuration files for Ubuntu Core
   config:
     plugin: dump
-    source: ubuntu-core
+    source: ubuntu-core/
     organize:
-      setup-ubuntu-core.sh: usr/local/bin/setup-ubuntu-core.sh 
+      setup-ubuntu-core.sh: usr/local/bin/setup-ubuntu-core.sh

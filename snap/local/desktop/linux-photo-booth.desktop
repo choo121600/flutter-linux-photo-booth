@@ -4,7 +4,6 @@ Type=Application
 Name=Linux Photo Booth
 Comment=A professional photo booth application for Ubuntu Core
 Exec=linux-photo-booth
-Icon=linux-photo-booth
 Terminal=false
 Categories=Graphics;Photography;Utility;
 Keywords=photo;camera;booth;print;event;kiosk;
