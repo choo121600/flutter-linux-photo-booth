@@ -87,6 +87,20 @@ EOF
 
 chmod +x /usr/local/bin/photo-booth-backup.sh
 
+echo "Configuring Raspberry Pi 5 hardware optimizations..."
+if [ -f /boot/firmware/config.txt ]; then
+    echo "gpu_mem=128" >> /boot/firmware/config.txt
+    echo "disable_overscan=1" >> /boot/firmware/config.txt
+    echo "gpu_mem_256=128" >> /boot/firmware/config.txt
+    echo "gpu_mem_512=128" >> /boot/firmware/config.txt
+    echo "gpu_mem_1024=128" >> /boot/firmware/config.txt
+    echo "arm_freq=1500" >> /boot/firmware/config.txt
+    echo "over_voltage=2" >> /boot/firmware/config.txt
+    echo "Raspberry Pi 5 hardware optimization applied"
+else
+    echo "WARNING: /boot/firmware/config.txt not found - skipping hardware optimization"
+fi
+
 echo "Setting up firewall..."
 ufw --force enable
 ufw allow ssh

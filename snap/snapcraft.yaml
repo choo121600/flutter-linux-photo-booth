@@ -28,6 +28,16 @@ platforms:
     build-on: [arm64]
     build-for: [arm64]
 
+plugs:
+  personal-files:
+    interface: personal-files
+    read:
+      - $HOME/Pictures
+      - $HOME/.photo-booth
+    write:
+      - $HOME/Pictures
+      - $HOME/.photo-booth
+
 apps:
   linux-photo-booth:
     command: bin/run-booth
@@ -37,10 +47,9 @@ apps:
       - cups-control
       - network
       - network-bind
-      - home
+      - personal-files
       - audio-playback
       - desktop
-      - desktop-legacy
       - wayland
       - x11
       - opengl
@@ -51,6 +60,10 @@ apps:
       GTK_USE_PORTAL: "0"
       GTK_A11Y: "none"
       GDK_BACKEND: "x11,wayland"
+      TMPDIR: "$SNAP_USER_COMMON"
+      NO_PROXY: "localhost,127.0.0.1"
+      MESA_GL_VERSION_OVERRIDE: "3.3"
+      MALLOC_TRIM_THRESHOLD_: "100000"
 
   photo-booth-server:
     command: bin/server.py
@@ -58,9 +71,10 @@ apps:
       - cups-control
       - network
       - network-bind
-      - home
+      - personal-files
     daemon: simple
     restart-condition: always
+    restart-delay: 5s
 
 parts:
   flutter-app:
@@ -148,7 +162,7 @@ parts:
     plugin: python
     source: .
     python-requirements:
-      - requirement.txt
+      - requirements.txt
     stage-packages:
       - cups
       - cups-client
