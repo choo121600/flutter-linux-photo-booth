@@ -22,7 +22,11 @@ base: core24
 
 platforms:
   amd64:
+    build-on: [amd64]
+    build-for: [amd64]
   arm64:
+    build-on: [arm64]
+    build-for: [arm64]
 
 apps:
   linux-photo-booth:
@@ -102,6 +106,7 @@ parts:
       - gstreamer1.0-plugins-good
       - gstreamer1.0-plugins-bad
       - gstreamer1.0-libav
+      - gstreamer1.0-tools
       
       # Camera and video support
       - libv4l-0
@@ -126,6 +131,13 @@ parts:
       - libwayland-cursor0
       - libwayland-egl1
       - libxkbcommon0
+      
+      # GIO and proxy support
+      - libglib2.0-bin
+      - glib-networking
+      - libproxy1v5
+      - libproxy1-plugin-gsettings
+      - libproxy1-plugin-networkmanager
       
       # Additional GTK dependencies
       - adwaita-icon-theme

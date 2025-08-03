@@ -20,8 +20,7 @@ export GST_PLUGIN_PATH="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gstreamer-1.0"
 export GST_PLUGIN_SCANNER="$SNAP/usr/libexec/gstreamer-1.0/gst-plugin-scanner"
 export GST_REGISTRY_FORK=no
 
-# Library paths
-export LD_LIBRARY_PATH="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$SNAP/usr/lib:$SNAP/lib:$LD_LIBRARY_PATH"
+# Library paths (removed duplicate as it's redefined below)
 
 # GDK Pixbuf configuration  
 export GDK_PIXBUF_MODULE_FILE="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0/2.10.0/loaders.cache"
@@ -31,6 +30,15 @@ export GDK_PIXBUF_MODULEDIR="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.
 export GTK_PATH="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gtk-3.0"
 export XDG_DATA_DIRS="$SNAP/usr/share:$XDG_DATA_DIRS"
 export XDG_CONFIG_DIRS="$SNAP/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}"
+
+# GIO modules configuration
+export GIO_MODULE_DIR="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gio/modules"
+if [ -d "$GIO_MODULE_DIR" ]; then
+    export GIO_EXTRA_MODULES="$GIO_MODULE_DIR"
+fi
+
+# Ensure Flutter libraries are found
+export LD_LIBRARY_PATH="$SNAP/lib:$SNAP/usr/lib:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$LD_LIBRARY_PATH"
 
 # Flutter-specific environment
 export FLUTTER_ENGINE_SWITCH_TO_IMPELLER=0
