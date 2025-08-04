@@ -53,6 +53,8 @@ apps:
       - wayland
       - x11
       - opengl
+      - hardware-observe
+      - raw-usb
     desktop: usr/share/applications/linux-photo-booth.desktop
     environment:
       FLUTTER_ENGINE_RUNTIME_MODE: release

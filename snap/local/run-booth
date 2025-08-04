@@ -21,6 +21,7 @@ export GST_PLUGIN_SCANNER="$SNAP/usr/libexec/gstreamer-1.0/gst-plugin-scanner"
 export GST_REGISTRY_FORK=no
 export GST_GL_PLATFORM=egl
 export GST_GL_API=gles2
+export GST_DEBUG=3
 
 # Library paths (removed duplicate as it's redefined below)
 
