@@ -84,6 +84,8 @@ parts:
       - libv4l-dev
       - libcups2-dev
     stage-packages:
+      - bash
+      - coreutils
       - libgstreamer1.0-0
       - libgstreamer-plugins-base1.0-0
       - gstreamer1.0-plugins-good
