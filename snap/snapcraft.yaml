@@ -28,15 +28,6 @@ platforms:
     build-on: [arm64]
     build-for: [arm64]
 
-plugs:
-  personal-files:
-    interface: personal-files
-    read:
-      - $HOME/Pictures
-      - $HOME/.photo-booth
-    write:
-      - $HOME/Pictures
-      - $HOME/.photo-booth
 
 apps:
   linux-photo-booth:
@@ -47,7 +38,6 @@ apps:
       - cups-control
       - network
       - network-bind
-      - personal-files
       - audio-playback
       - desktop
       - wayland
@@ -72,7 +62,6 @@ apps:
       - cups-control
       - network
       - network-bind
-      - personal-files
     daemon: simple
     restart-condition: always
     restart-delay: 5s
