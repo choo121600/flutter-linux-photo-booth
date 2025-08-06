@@ -103,8 +103,7 @@ class _TakePicturePageState extends State<TakePicturePage>
                           RepaintBoundary(
                             key: cameraKey,
                             child: GstPlayer(
-                              pipeline:
-                                  '''v4l2src device=/dev/video0 ! videoconvert ! videoflip method=horizontal-flip ! videoflip method=clockwise ! videoscale ! video/x-raw,width=1920,height=1080,format=RGBA ! appsink name=sink''',
+                              pipeline: _getCameraPipeline(),
                             ),
                           ),
                           if (_takingPicture) _buildOverlay(),
@@ -177,6 +176,12 @@ class _TakePicturePageState extends State<TakePicturePage>
     });
   }
 
+  String _getCameraPipeline() {
+    // Basic pipeline that should work on both ARM and AMD
+    // Removed complex video transformations that might cause issues
+    return '''v4l2src device=/dev/video0 ! videoconvert ! videoscale ! video/x-raw,width=640,height=480,format=RGBA ! appsink name=sink''';
+  }
+
   void _captureAndSaveImage() async {
     try {
       RenderRepaintBoundary boundary =
@@ -189,13 +194,18 @@ class _TakePicturePageState extends State<TakePicturePage>
         setState(() {
           imageController.capturedImages.add(byteData);
           _picturesTaken++;
+          _takingPicture = false;
           if (_picturesTaken < _selectedType!) {
             _takePicture();
           }
         });
       }
     } catch (e) {
-      print(e);
+      print('Error capturing image: $e');
+      setState(() {
+        _takingPicture = false;
+      });
     }
   }
+
 }

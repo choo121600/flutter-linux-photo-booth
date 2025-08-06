@@ -36,21 +36,50 @@ void GstPlayer::play(const gchar* pipelineString) {
     freeGst();
   }
 
+  GError* error = nullptr;
   pipeline = gst_parse_launch(
        pipelineString_.c_str(),
-      nullptr);
+      &error);
+
+  if (error != nullptr) {
+    g_print("GStreamer pipeline error: %s\n", error->message);
+    g_error_free(error);
+    return;
+  }
+
+  if (pipeline == nullptr) {
+    g_print("Failed to create GStreamer pipeline\n");
+    return;
+  }
 
   sink_ = gst_bin_get_by_name(GST_BIN(pipeline), "sink");
+  if (sink_ == nullptr) {
+    g_print("Failed to find sink element in pipeline\n");
+    gst_object_unref(pipeline);
+    pipeline = nullptr;
+    return;
+  }
+
   gst_app_sink_set_emit_signals(GST_APP_SINK(sink_), TRUE);
   g_signal_connect(sink_, "new-sample", G_CALLBACK(newSample), (gpointer)this);
 
-  gst_element_set_state(pipeline, GST_STATE_PLAYING);
+  GstStateChangeReturn ret = gst_element_set_state(pipeline, GST_STATE_PLAYING);
+  if (ret == GST_STATE_CHANGE_FAILURE) {
+    g_print("Failed to set pipeline to PLAYING state\n");
+    freeGst();
+  }
 }
 
 void GstPlayer::freeGst(void) {
-  gst_element_set_state(pipeline, GST_STATE_NULL);
-  gst_object_unref(sink_);
-  gst_object_unref(pipeline);
+  if (pipeline != nullptr) {
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+    pipeline = nullptr;
+  }
+  if (sink_ != nullptr) {
+    gst_object_unref(sink_);
+    sink_ = nullptr;
+  }
 }
 
 GstFlowReturn GstPlayer::newSample(GstAppSink *sink, gpointer gSelf) {

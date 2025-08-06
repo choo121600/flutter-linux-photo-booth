@@ -2,9 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
-import 'dart:math';
+import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
@@ -80,7 +78,7 @@ class _PrintPageState extends State<PrintPage> {
                 padding: const EdgeInsets.all(16.0),
                 child: ElevatedButton(
                   onPressed: () {
-                    _saveCombinedImage();
+                    _printImage();
                   },
                   child: const Text('Print the picture'),
                 ),
@@ -101,45 +99,51 @@ class _PrintPageState extends State<PrintPage> {
     );
   }
 
-  void _sendFilePath(String filePath) async {
-    final url = Uri.parse('http://localhost:5000/print');
-    final response = await http.post(
-      url,
-      body: {'filePath': filePath},
-    );
+  /// 메모리에서 직접 이미지를 프린트합니다 (로컬 저장소 사용 안 함)
+  void _printImage() async {
+    if (_combinedImageData == null) {
+      _showMessage('No image to print');
+      return;
+    }
 
-    if (response.statusCode == 200) {
-      print('File path sent successfully');
-    } else {
-      print('Failed to send file path. Error ${response.statusCode}');
+    try {
+      final url = Uri.parse('http://localhost:5000/print');
+      
+      // 이미지 데이터를 base64로 인코딩
+      final List<int> imageBytes = _combinedImageData!.buffer.asUint8List();
+      final String base64Image = base64Encode(imageBytes);
+      
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'imageData': base64Image,
+          'filename': 'photo_booth_print.png'
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('Image sent for printing successfully');
+        _showMessage('Print job sent successfully!');
+      } else {
+        print('Failed to print. Error ${response.statusCode}');
+        _showMessage('Failed to print. Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error printing image: $e');
+      _showMessage('Error printing image: $e');
     }
   }
 
-  void _saveCombinedImage() async {
-    if (_combinedImageData == null) return;
-
-    String fileName = _generateRandomName();
-    await _saveImage(_combinedImageData!, '$fileName.png');
-
-    final Directory directory = await getApplicationDocumentsDirectory();
-    final String filePath = '${directory.path}/$fileName.png';
-
-    print('Image saved at: $filePath');
-    _sendFilePath(filePath);
-  }
-
-  Future<void> _saveImage(ByteData image, String fileName) async {
-    final Directory directory = await getApplicationDocumentsDirectory();
-    final String filePath = '${directory.path}/$fileName';
-    final List<int> buffer = image.buffer.asUint8List();
-    await File(filePath).writeAsBytes(buffer, flush: true);
-  }
-
-  String _generateRandomName() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    const length = 10;
-    Random random = Random();
-    return List.generate(length, (index) => chars[random.nextInt(chars.length)])
-        .join();
+  /// 사용자에게 메시지를 표시합니다
+  void _showMessage(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 }
