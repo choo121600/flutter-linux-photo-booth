@@ -26,6 +26,7 @@ class _TakePicturePageState extends State<TakePicturePage>
   bool _takingPicture = false;
   bool _cameraInitialized = false;
   String? _cameraError;
+  bool _useTestPattern = true; // 먼저 테스트 패턴으로 시작
   late AnimationController _animationController;
 
   @override
@@ -135,6 +136,30 @@ class _TakePicturePageState extends State<TakePicturePage>
             ),
             Column(
               children: [
+                // 테스트 패턴/카메라 전환 버튼
+                if (_useTestPattern && _cameraInitialized)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: ElevatedButton.icon(
+                      onPressed: _switchToCamera,
+                      icon: Icon(Icons.videocam),
+                      label: Text('Switch to Camera'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                      ),
+                    ),
+                  ),
+                if (!_useTestPattern)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      'Using Real Camera',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 _picturesTaken < _selectedType!
                     ? ElevatedButton(
                         onPressed: _takingPicture ? null : _takePicture,
@@ -256,20 +281,45 @@ class _TakePicturePageState extends State<TakePicturePage>
     try {
       return GstPlayer(
         pipeline: _getCameraPipeline(),
+        onError: (error) {
+          print('GStreamer runtime error: $error');
+          if (mounted) {
+            setState(() {
+              _cameraError = 'GStreamer runtime error: $error';
+            });
+          }
+        },
       );
     } catch (e) {
-      print('GStreamer error: $e');
-      setState(() {
-        _cameraError = 'GStreamer initialization failed: $e';
-      });
+      print('GStreamer initialization error: $e');
+      if (mounted) {
+        setState(() {
+          _cameraError = 'GStreamer initialization failed: $e';
+        });
+      }
       return Container(
         width: 525.0,
         height: 700.0,
         color: Colors.black,
         child: Center(
-          child: Text(
-            'Camera initialization failed',
-            style: TextStyle(color: Colors.white, fontSize: 18),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 48),
+              SizedBox(height: 16),
+              Text(
+                'GStreamer Error',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  e.toString(),
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -277,8 +327,26 @@ class _TakePicturePageState extends State<TakePicturePage>
   }
 
   String _getCameraPipeline() {
-    // Raspberry Pi 5 optimized pipeline with multiple fallbacks
-    return '''v4l2src device=/dev/video0 ! video/x-raw,width=640,height=480 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
+    if (_useTestPattern) {
+      // 가장 안전한 테스트 패턴
+      return '''videotestsrc pattern=ball ! video/x-raw,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
+    } else {
+      // 실제 카메라 (테스트 패턴이 성공한 후에만 시도)
+      return '''v4l2src device=/dev/video0 ! video/x-raw,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
+    }
+  }
+  
+  void _switchToCamera() {
+    if (!_useTestPattern) return;
+    
+    setState(() {
+      _useTestPattern = false;
+      _cameraInitialized = false;
+      _cameraError = null;
+    });
+    
+    // 카메라로 전환 후 재초기화
+    _initializeCamera();
   }
 
   void _captureAndSaveImage() async {
