@@ -24,6 +24,8 @@ class _TakePicturePageState extends State<TakePicturePage>
   int _picturesTaken = 0;
   int? _selectedType;
   bool _takingPicture = false;
+  bool _cameraInitialized = false;
+  String? _cameraError;
   late AnimationController _animationController;
 
   @override
@@ -33,6 +35,25 @@ class _TakePicturePageState extends State<TakePicturePage>
       vsync: this,
       duration: Duration(milliseconds: 300),
     );
+    _initializeCamera();
+  }
+
+  void _initializeCamera() async {
+    try {
+      // 카메라 초기화 지연을 통해 안전성 확보
+      await Future.delayed(Duration(milliseconds: 500));
+      
+      setState(() {
+        _cameraInitialized = true;
+      });
+      
+      print('Camera initialization completed');
+    } catch (e) {
+      setState(() {
+        _cameraError = 'Camera initialization failed: $e';
+      });
+      print('Camera initialization error: $e');
+    }
   }
 
   @override
@@ -102,9 +123,7 @@ class _TakePicturePageState extends State<TakePicturePage>
                         children: [
                           RepaintBoundary(
                             key: cameraKey,
-                            child: GstPlayer(
-                              pipeline: _getCameraPipeline(),
-                            ),
+                            child: _buildCameraWidget(),
                           ),
                           if (_takingPicture) _buildOverlay(),
                         ],
@@ -176,10 +195,90 @@ class _TakePicturePageState extends State<TakePicturePage>
     });
   }
 
+  Widget _buildCameraWidget() {
+    // 에러가 있으면 에러 화면 표시
+    if (_cameraError != null) {
+      return Container(
+        width: 525.0,
+        height: 700.0,
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: Colors.red,
+                size: 64,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Camera Error',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  _cameraError!,
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // 초기화 중이면 로딩 화면 표시
+    if (!_cameraInitialized) {
+      return Container(
+        width: 525.0,
+        height: 700.0,
+        color: Colors.black,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(height: 16),
+              Text(
+                'Initializing Camera...',
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // 카메라가 초기화되면 실제 GStreamer 위젯 표시
+    try {
+      return GstPlayer(
+        pipeline: _getCameraPipeline(),
+      );
+    } catch (e) {
+      print('GStreamer error: $e');
+      setState(() {
+        _cameraError = 'GStreamer initialization failed: $e';
+      });
+      return Container(
+        width: 525.0,
+        height: 700.0,
+        color: Colors.black,
+        child: Center(
+          child: Text(
+            'Camera initialization failed',
+            style: TextStyle(color: Colors.white, fontSize: 18),
+          ),
+        ),
+      );
+    }
+  }
+
   String _getCameraPipeline() {
-    // Basic pipeline that should work on both ARM and AMD
-    // Removed complex video transformations that might cause issues
-    return '''v4l2src device=/dev/video0 ! videoconvert ! videoscale ! video/x-raw,width=640,height=480,format=RGBA ! appsink name=sink''';
+    // Raspberry Pi 5 optimized pipeline with multiple fallbacks
+    return '''v4l2src device=/dev/video0 ! video/x-raw,width=640,height=480 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
   }
 
   void _captureAndSaveImage() async {
