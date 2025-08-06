@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Linux Photo Booth Launcher for Ubuntu Core & Ubuntu Desktop
 # Optimized for Raspberry Pi 5 (ARM64) and x86_64 platforms
 
