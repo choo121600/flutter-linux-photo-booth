@@ -281,14 +281,6 @@ class _TakePicturePageState extends State<TakePicturePage>
     try {
       return GstPlayer(
         pipeline: _getCameraPipeline(),
-        onError: (error) {
-          print('GStreamer runtime error: $error');
-          if (mounted) {
-            setState(() {
-              _cameraError = 'GStreamer runtime error: $error';
-            });
-          }
-        },
       );
     } catch (e) {
       print('GStreamer initialization error: $e');
