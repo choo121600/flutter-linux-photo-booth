@@ -1,0 +1,28 @@
+name: flutter-linux-photobooth
+version: 0.1.0
+summary: flutter linux photo booth
+description: flutter linux photo booth for Local Event
+
+confinement: strict
+base: core22
+grade: stable
+
+slots:
+  dbus-flutter-linux-photobooth: # adjust accordingly to your app name
+    interface: dbus
+    bus: session
+    name: org.bar.super_cool_app # adjust accordingly to your app name and
+
+apps:
+  flutter-linux-photobooth:
+    command: super_cool_app
+    extensions: [gnome] # gnome includes the libraries required by flutter
+    plugs:
+      - network
+    slots:
+      - dbus-flutter-linux-photobooth
+parts:
+  flutter-linux-photobooth:
+    source: .
+    plugin: flutter
+    flutter-target: lib/main.dart # The main entry-point file of the application
