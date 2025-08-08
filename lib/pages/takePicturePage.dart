@@ -28,14 +28,22 @@ class _TakePicturePageState extends State<TakePicturePage>
   bool _takingPicture = false;
   String? _cameraDevice;
   late AnimationController _animationController;
+  late Animation<double> _shutterAnimation;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 150),
     );
+    _shutterAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
     _initCameraDevice();
   }
 
@@ -166,14 +174,47 @@ class _TakePicturePageState extends State<TakePicturePage>
   }
 
   Widget _buildOverlay() {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 300),
-      opacity: _animationController.value,
-      child: Container(
-        width: 525.0,
-        height: 700.0,
-        color: Colors.white,
-      ),
+    return AnimatedBuilder(
+      animation: _shutterAnimation,
+      builder: (context, child) {
+        return Container(
+          width: 525.0,
+          height: 700.0,
+          child: Stack(
+            children: [
+              // 위쪽 셔터 블레이드
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 350.0 * _shutterAnimation.value,
+                child: Container(
+                  color: Colors.black,
+                ),
+              ),
+              // 아래쪽 셔터 블레이드
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 350.0 * _shutterAnimation.value,
+                child: Container(
+                  color: Colors.black,
+                ),
+              ),
+              // 플래시 효과
+              if (_shutterAnimation.value > 0.8)
+                Container(
+                  width: 525.0,
+                  height: 700.0,
+                  color: Colors.white.withOpacity(
+                    (1.0 - _shutterAnimation.value) * 5.0,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -191,14 +232,17 @@ class _TakePicturePageState extends State<TakePicturePage>
           _countdown--;
         } else {
           _timer?.cancel();
+          _playShutterAnimation();
           _captureAndSaveImage();
-          _animationController.forward();
-          Future.delayed(const Duration(milliseconds: 300), () {
-            _animationController.reverse();
-          });
         }
       });
     });
+  }
+
+  void _playShutterAnimation() async {
+    await _animationController.forward();
+    await Future.delayed(const Duration(milliseconds: 50));
+    await _animationController.reverse();
   }
 
   void _captureAndSaveImage() async {
