@@ -2,9 +2,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
-import 'dart:math';
 
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
@@ -80,7 +77,7 @@ class _PrintPageState extends State<PrintPage> {
                 padding: const EdgeInsets.all(16.0),
                 child: ElevatedButton(
                   onPressed: () {
-                    _saveCombinedImage();
+                    _printCombinedImage();
                   },
                   child: const Text('Print the picture'),
                 ),
@@ -101,45 +98,26 @@ class _PrintPageState extends State<PrintPage> {
     );
   }
 
-  void _sendFilePath(String filePath) async {
+  void _sendImageData(ByteData imageData) async {
     final url = Uri.parse('http://localhost:5000/print');
     final response = await http.post(
       url,
-      body: {'filePath': filePath},
+      headers: {'Content-Type': 'application/octet-stream'},
+      body: imageData.buffer.asUint8List(),
     );
 
     if (response.statusCode == 200) {
-      print('File path sent successfully');
+      print('Image data sent successfully');
     } else {
-      print('Failed to send file path. Error ${response.statusCode}');
+      print('Failed to send image data. Error ${response.statusCode}');
     }
   }
 
-  void _saveCombinedImage() async {
+  void _printCombinedImage() async {
     if (_combinedImageData == null) return;
 
-    String fileName = _generateRandomName();
-    await _saveImage(_combinedImageData!, '$fileName.png');
-
-    final Directory directory = await getApplicationDocumentsDirectory();
-    final String filePath = '${directory.path}/$fileName.png';
-
-    print('Image saved at: $filePath');
-    _sendFilePath(filePath);
+    print('Sending image data directly to printer');
+    _sendImageData(_combinedImageData!);
   }
 
-  Future<void> _saveImage(ByteData image, String fileName) async {
-    final Directory directory = await getApplicationDocumentsDirectory();
-    final String filePath = '${directory.path}/$fileName';
-    final List<int> buffer = image.buffer.asUint8List();
-    await File(filePath).writeAsBytes(buffer, flush: true);
-  }
-
-  String _generateRandomName() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    const length = 10;
-    Random random = Random();
-    return List.generate(length, (index) => chars[random.nextInt(chars.length)])
-        .join();
-  }
 }
