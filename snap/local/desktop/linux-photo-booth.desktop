@@ -7,4 +7,4 @@ Exec=linux-photo-booth
 Terminal=false
 Categories=Graphics;Photography;Utility;
 Keywords=photo;camera;booth;print;event;kiosk;
-StartupWMClass=linux-photo-booth 
+StartupWMClass=linux-photo-booth

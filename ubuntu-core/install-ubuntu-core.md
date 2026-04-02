@@ -5,7 +5,7 @@ This guide provides detailed instructions for advanced Ubuntu Core setup and con
 ## Prerequisites
 
 Before starting, ensure you have:
-- Raspberry Pi 4 (4GB RAM minimum, 8GB recommended)
+- Raspberry Pi 5 (4GB RAM minimum, 8GB recommended)
 - 32GB+ MicroSD card (Class 10 recommended)
 - USB camera (Logitech C920 or compatible)
 - Touch screen display
@@ -17,15 +17,15 @@ Before starting, ensure you have:
 ### Download Ubuntu Core Image
 
 ```bash
-# Download the latest Ubuntu Core 22.04 LTS image
-wget https://cdimage.ubuntu.com/ubuntu-core/22/stable/current/ubuntu-core-22-arm64+raspi.img.xz
+# Download the latest Ubuntu Core 24.04 LTS image
+wget https://cdimage.ubuntu.com/ubuntu-core/24/stable/current/ubuntu-core-24-arm64+raspi.img.xz
 
 # Verify download integrity
-wget https://cdimage.ubuntu.com/ubuntu-core/22/stable/current/SHA256SUMS
+wget https://cdimage.ubuntu.com/ubuntu-core/24/stable/current/SHA256SUMS
 sha256sum -c SHA256SUMS
 
 # Extract the image
-xz -d ubuntu-core-22-arm64+raspi.img.xz
+xz -d ubuntu-core-24-arm64+raspi.img.xz
 ```
 
 ### Flash Image to SD Card
@@ -35,11 +35,11 @@ xz -d ubuntu-core-22-arm64+raspi.img.xz
 lsblk
 
 # Flash the image (replace /dev/sdb with your SD card device)
-sudo dd if=ubuntu-core-22-arm64+raspi.img of=/dev/sdb bs=4M status=progress conv=fsync
+sudo dd if=ubuntu-core-24-arm64+raspi.img of=/dev/sdb bs=4M status=progress conv=fsync
 
 # Verify the flash
 sudo dd if=/dev/sdb of=/tmp/verify.img bs=4M count=1000
-diff ubuntu-core-22-arm64+raspi.img /tmp/verify.img
+diff ubuntu-core-24-arm64+raspi.img /tmp/verify.img
 ```
 
 ## Initial Ubuntu Core Setup

@@ -4,7 +4,7 @@ summary: Professional photo booth application for Ubuntu Core
 description: |
   A professional photo booth application designed for Ubuntu Core and Ubuntu Frame.
   Perfect for events, parties, and commercial photo booth installations.
-  
+
   Features:
   - Real-time camera capture using GStreamer
   - Multiple photo layouts (1x1, 2x2)
@@ -28,10 +28,23 @@ platforms:
     build-on: [arm64]
     build-for: [arm64]
 
+plugs:
+  gpu-2404:
+    interface: content
+    target: $SNAP/gpu-2404
+    default-provider: mesa-2404
+
+slots:
+  dbus-linux-photo-booth:
+    interface: dbus
+    bus: session
+    name: com.test.linux_photo_booth
 
 apps:
   linux-photo-booth:
     command: bin/run-booth
+    command-chain:
+      - bin/gpu-2404-wrapper
     extensions: [gnome]
     plugs:
       - camera
@@ -39,21 +52,17 @@ apps:
       - network
       - network-bind
       - audio-playback
-      - desktop
-      - wayland
-      - x11
-      - opengl
       - raw-usb
+    slots:
+      - dbus-linux-photo-booth
     desktop: usr/share/applications/linux-photo-booth.desktop
     environment:
       FLUTTER_ENGINE_RUNTIME_MODE: release
       FLUTTER_ENGINE_SWITCH_TO_IMPELLER: "0"
-      GTK_USE_PORTAL: "0"
       GTK_A11Y: "none"
       GDK_BACKEND: "wayland,x11"
       TMPDIR: "$SNAP_USER_COMMON"
       NO_PROXY: "localhost,127.0.0.1"
-      MESA_GL_VERSION_OVERRIDE: "3.2"
       MALLOC_TRIM_THRESHOLD_: "100000"
 
   photo-booth-server:
@@ -74,9 +83,9 @@ parts:
     override-build: |
       # Remove problematic pubspec.lock to avoid platform conflicts
       rm -f pubspec.lock
-      
+
       # Run default flutter build
-      snapcraftctl build
+      craftctl default
     build-packages:
       - libgtk-3-dev
       - libgstreamer1.0-dev
@@ -91,6 +100,8 @@ parts:
       - gstreamer1.0-plugins-good
       - gstreamer1.0-plugins-bad
       - gstreamer1.0-libav
+      - gstreamer1.0-pulseaudio
+      - gstreamer1.0-alsa
       - libv4l-0
       - v4l-utils
       - libcups2
@@ -106,7 +117,7 @@ parts:
       - cups
       - cups-client
     override-build: |
-      snapcraftctl build
+      craftctl default
       mkdir -p $SNAPCRAFT_PART_INSTALL/bin
       cp server.py $SNAPCRAFT_PART_INSTALL/bin/server.py
       chmod +x $SNAPCRAFT_PART_INSTALL/bin/server.py

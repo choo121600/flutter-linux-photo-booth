@@ -36,13 +36,13 @@ Ubuntu Frame handles the display server and kiosk management automatically.
 
 1. **Download Ubuntu Core image**
    ```bash
-   wget https://cdimage.ubuntu.com/ubuntu-core/22/stable/current/ubuntu-core-22-arm64+raspi.img.xz
-   xz -d ubuntu-core-22-arm64+raspi.img.xz
+   wget https://cdimage.ubuntu.com/ubuntu-core/24/stable/current/ubuntu-core-24-arm64+raspi.img.xz
+   xz -d ubuntu-core-24-arm64+raspi.img.xz
    ```
 
 2. **Flash to SD card**
    ```bash
-   sudo dd if=ubuntu-core-22-arm64+raspi.img of=/dev/sdb bs=4M status=progress
+   sudo dd if=ubuntu-core-24-arm64+raspi.img of=/dev/sdb bs=4M status=progress
    ```
 
 3. **Boot and configure**
@@ -74,12 +74,10 @@ sudo snap install linux-photo-booth
 # Or install locally built snap
 sudo snap install --dangerous linux-photo-booth_*.snap
 
-# Connect required interfaces
+# Connect required interfaces (desktop, wayland, x11, opengl are auto-connected via gnome extension)
 sudo snap connect linux-photo-booth:camera
 sudo snap connect linux-photo-booth:cups-control
-sudo snap connect linux-photo-booth:desktop
-sudo snap connect linux-photo-booth:network
-sudo snap connect linux-photo-booth:network-bind
+sudo snap connect linux-photo-booth:raw-usb
 ```
 
 ### 4. Configure Ubuntu Frame
@@ -132,10 +130,9 @@ snapcraft --destructive-mode
 # Install snap in development mode
 sudo snap install --devmode linux-photo-booth_*.snap
 
-# Connect interfaces
+# Connect interfaces (desktop, wayland, x11, opengl are auto-connected via gnome extension)
 sudo snap connect linux-photo-booth:camera
 sudo snap connect linux-photo-booth:cups-control
-sudo snap connect linux-photo-booth:desktop
 
 # Test the application
 linux-photo-booth
@@ -166,7 +163,10 @@ flutter-linux-photo-booth/
 │   └── backgrounds/        # UI background images
 ├── snap/
 │   ├── snapcraft.yaml      # Snap package configuration
-│   └── desktop/           # Desktop integration files
+│   ├── gui/               # Snap Store icon (linux-photo-booth.png)
+│   └── local/
+│       ├── run-booth       # Launcher script
+│       └── desktop/        # Desktop integration files
 ├── ubuntu-core/
 │   ├── setup-ubuntu-core.sh # Ubuntu Core setup script
 │   └── install-ubuntu-core.md # Detailed installation guide
@@ -297,12 +297,10 @@ The application runs in strict confinement, providing:
 ### Interface Connections
 
 ```bash
-# Required interfaces
-sudo snap connect linux-photo-booth:camera      # Camera access
+# Required interfaces (desktop, wayland, x11, opengl are auto-connected via gnome extension)
+sudo snap connect linux-photo-booth:camera      # Camera access (manual connect required)
 sudo snap connect linux-photo-booth:cups-control # Printer access
-sudo snap connect linux-photo-booth:desktop     # Display access
-sudo snap connect linux-photo-booth:network     # Network access
-sudo snap connect linux-photo-booth:network-bind # Network binding
+sudo snap connect linux-photo-booth:raw-usb     # USB device access
 ```
 
 ## Troubleshooting

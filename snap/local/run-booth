@@ -2,12 +2,26 @@
 # Linux Photo Booth Launcher for Ubuntu Core & Ubuntu Desktop
 # Optimized for Raspberry Pi 5 (ARM64) and x86_64 platforms
 
-# Dynamic user runtime directory (Ubuntu Core 호환)
+# Resolve architecture triplet at runtime (SNAPCRAFT_ARCH_TRIPLET is build-time only)
+if [ -z "$CRAFT_ARCH_TRIPLET" ]; then
+    ARCH_TRIPLET=$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null)
+    if [ -z "$ARCH_TRIPLET" ]; then
+        case "$(uname -m)" in
+            aarch64|arm64) ARCH_TRIPLET="aarch64-linux-gnu" ;;
+            x86_64)        ARCH_TRIPLET="x86_64-linux-gnu" ;;
+            *)             ARCH_TRIPLET="$(uname -m)-linux-gnu" ;;
+        esac
+    fi
+else
+    ARCH_TRIPLET="$CRAFT_ARCH_TRIPLET"
+fi
+
+# Dynamic user runtime directory (Ubuntu Core compatible)
 export DISPLAY="${DISPLAY:-:0}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 
-# Ubuntu Core는 주로 Wayland, Desktop은 X11도 지원
+# Display server detection (Ubuntu Core uses Wayland, Desktop supports both)
 if [ -n "$WAYLAND_DISPLAY" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
     export XDG_SESSION_TYPE="wayland"
     export GDK_BACKEND="wayland"
@@ -18,96 +32,99 @@ else
     echo "Using X11 display server"
 fi
 
-# GTK 환경 (Ubuntu Core 최적화)
-export GTK_USE_PORTAL=0
+# GTK environment (Ubuntu Core optimized)
 export GTK_A11Y=none
 export GDK_SCALE=1
 export GDK_DPI_SCALE=1
 
-# 커서 테마 문제 해결 (Segmentation fault 원인 중 하나)
+# Cursor theme fix (prevents segfault)
 export XCURSOR_THEME="DMZ-White"
 export XCURSOR_SIZE=24
 export XCURSOR_PATH="$SNAP/usr/share/icons:${XCURSOR_PATH:-/usr/share/icons}"
 
-# 아키텍처별 최적화
+# Architecture-specific optimization
 ARCH=$(uname -m)
 if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    # Raspberry Pi 5 ARM64 최적화
+    # Raspberry Pi 5 ARM64 optimization
     export MESA_GL_VERSION_OVERRIDE="3.0"
     export GST_GL_PLATFORM=egl
     export GST_GL_API=gles2
-    
-    # Raspberry Pi 5 특화 GPU 드라이버 설정
+
+    # Raspberry Pi 5 GPU driver settings
     export VC_GPU_ENABLE=1
     export GST_V4L2_USE_LIBV4L2=1
-    
-    # GStreamer 오류 처리 강화
+
+    # GStreamer error handling
     export GST_DEBUG_NO_COLOR=1
     export GST_DEBUG_DUMP_DOT_DIR="$SNAP_USER_COMMON/gst-debug"
     mkdir -p "$SNAP_USER_COMMON/gst-debug"
-    
+
     echo "ARM64 optimization enabled for Raspberry Pi 5"
 else
-    # x86_64 최적화
+    # x86_64 optimization
     export MESA_GL_VERSION_OVERRIDE="3.3"
     export GST_GL_PLATFORM=glx
     export GST_GL_API=opengl
     echo "x86_64 optimization enabled"
 fi
 
-# GStreamer 설정 (운영환경 최적화)
-export GST_PLUGIN_PATH="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gstreamer-1.0"
+# GStreamer configuration (runtime paths with resolved arch triplet)
+GST_PATH="$SNAP/usr/lib/$ARCH_TRIPLET/gstreamer-1.0"
+export GST_PLUGIN_PATH="$GST_PATH"
+export GST_PLUGIN_SYSTEM_PATH="$GST_PATH"
 export GST_PLUGIN_SCANNER="$SNAP/usr/libexec/gstreamer-1.0/gst-plugin-scanner"
 export GST_REGISTRY_FORK=no
-export GST_DEBUG=1  # 운영환경에서는 최소 로깅 (성능 향상)
+export GST_DEBUG=1
 export GST_REGISTRY="$SNAP_USER_COMMON/gstreamer-1.0/registry.bin"
-export GST_REGISTRY_UPDATE=no
 
-# GDK Pixbuf 설정
-export GDK_PIXBUF_MODULE_FILE="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0/2.10.0/loaders.cache"
-export GDK_PIXBUF_MODULEDIR="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-2.0/2.10.0/loaders"
+# Allow registry generation on first run, skip on subsequent runs
+if [ -f "$GST_REGISTRY" ]; then
+    export GST_REGISTRY_UPDATE=no
+fi
 
-# GTK 및 테마 설정
-export GTK_PATH="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gtk-3.0"
+# GDK Pixbuf configuration
+export GDK_PIXBUF_MODULE_FILE="$SNAP/usr/lib/$ARCH_TRIPLET/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+export GDK_PIXBUF_MODULEDIR="$SNAP/usr/lib/$ARCH_TRIPLET/gdk-pixbuf-2.0/2.10.0/loaders"
+
+# GTK and theme settings
+export GTK_PATH="$SNAP/usr/lib/$ARCH_TRIPLET/gtk-3.0"
 export XDG_DATA_DIRS="$SNAP/usr/share:${XDG_DATA_DIRS:-/usr/share}"
 export XDG_CONFIG_DIRS="$SNAP/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}"
 
-# GIO 모듈 설정
-export GIO_MODULE_DIR="$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gio/modules"
+# GIO module configuration
+export GIO_MODULE_DIR="$SNAP/usr/lib/$ARCH_TRIPLET/gio/modules"
 if [ -d "$GIO_MODULE_DIR" ]; then
     export GIO_EXTRA_MODULES="$GIO_MODULE_DIR"
 fi
 
-# 라이브러리 경로 (snap 환경에 맞게 최적화)
-export LD_LIBRARY_PATH="$SNAP/lib:$SNAP/usr/lib:$SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$LD_LIBRARY_PATH"
+# Library paths (optimized for snap environment)
+export LD_LIBRARY_PATH="$SNAP/lib:$SNAP/usr/lib:$SNAP/usr/lib/$ARCH_TRIPLET:$LD_LIBRARY_PATH"
 
-# Flutter 환경
+# Flutter environment
 export FLUTTER_ENGINE_SWITCH_TO_IMPELLER=0
 export TMPDIR="${SNAP_USER_COMMON:-/tmp}"
 export FLUTTER_ENGINE_RUNTIME_MODE=release
 export FLUTTER_DPI_SCALE=1.0
 
-# PATH 설정
+# PATH setup
 export PATH="$SNAP/usr/bin:$SNAP/bin:$PATH"
 
-# 필수 디렉토리 생성
+# Create required directories
 mkdir -p "$SNAP_USER_COMMON/gstreamer-1.0"
 mkdir -p "$SNAP_USER_COMMON/logs"
 
-# X11 인증 설정 (가능한 경우)
+# X11 authentication (if available)
 if [ "$XDG_SESSION_TYPE" = "x11" ] && [ -f "$HOME/.Xauthority" ]; then
     export XAUTHORITY="$HOME/.Xauthority"
     echo "X11 authority file found and configured"
 fi
 
-# 카메라 장치 확인 및 사용자에게 안내
+# Camera device detection
 CAMERA_FOUND=0
 USABLE_CAMERA=""
 
-# Raspberry Pi에서 실제 카메라 장치를 찾기
 for i in $(seq 0 5); do
     if [ -r "/dev/video$i" ]; then
-        # v4l2-ctl로 실제 카메라인지 확인 (가능한 경우)
         if command -v v4l2-ctl >/dev/null 2>&1; then
             CAPS=$(v4l2-ctl --device="/dev/video$i" --list-formats 2>/dev/null | grep -c "YUYV\|RGB\|YUV")
             if [ "$CAPS" -gt 0 ]; then
@@ -134,32 +151,49 @@ else
     export DEFAULT_CAMERA_DEVICE="$USABLE_CAMERA"
 fi
 
-# 디버그 정보 (DEBUG=1일 때만 출력)
+# Debug info (only when DEBUG=1)
 if [ "$DEBUG" = "1" ]; then
     echo "=== Linux Photo Booth Debug Info ==="
     echo "Architecture: $ARCH"
+    echo "Arch Triplet: $ARCH_TRIPLET"
     echo "Session Type: $XDG_SESSION_TYPE"
     echo "GDK Backend: $GDK_BACKEND"
     echo "Display: $DISPLAY"
     echo "Wayland: $WAYLAND_DISPLAY"
     echo "Runtime Dir: $XDG_RUNTIME_DIR"
     echo "GST Plugin Path: $GST_PLUGIN_PATH"
+    echo "GST Plugin Scanner: $GST_PLUGIN_SCANNER"
+    echo "GST Registry: $GST_REGISTRY"
     echo "LD Library Path: ${LD_LIBRARY_PATH:0:200}..."
     echo "=================================="
 fi
 
-# 애플리케이션 실행 (로그 파일과 함께)
-echo "Starting Linux Photo Booth ($(date))..."
+# Resolve Flutter binary path
+FLUTTER_BIN=""
+for candidate in "$SNAP/bin/linux_photo_booth" "$SNAP/linux_photo_booth"; do
+    if [ -x "$candidate" ]; then
+        FLUTTER_BIN="$candidate"
+        break
+    fi
+done
 
-# 에러 처리를 위한 실행 방식
+if [ -z "$FLUTTER_BIN" ]; then
+    echo "ERROR: Flutter binary not found!"
+    echo "Searched: $SNAP/bin/linux_photo_booth, $SNAP/linux_photo_booth"
+    ls -la "$SNAP/bin/" 2>/dev/null
+    exit 1
+fi
+
+# Launch application
+echo "Starting Linux Photo Booth ($(date))..."
+echo "Binary: $FLUTTER_BIN"
+
 if [ "$DEBUG" = "1" ]; then
-    # 디버그 모드: 모든 출력을 화면과 로그 파일에 동시 출력
-    exec "$SNAP/linux_photo_booth" "$@" 2>&1 | tee "$SNAP_USER_COMMON/logs/app.log"
+    exec "$FLUTTER_BIN" "$@" 2>&1 | tee "$SNAP_USER_COMMON/logs/app.log"
 else
-    # 운영 모드: 로그는 파일에만 저장하고 중요한 메시지만 화면에 출력
-    "$SNAP/linux_photo_booth" "$@" 2>"$SNAP_USER_COMMON/logs/error.log" | tee "$SNAP_USER_COMMON/logs/app.log"
+    "$FLUTTER_BIN" "$@" 2>"$SNAP_USER_COMMON/logs/error.log" | tee "$SNAP_USER_COMMON/logs/app.log"
     EXIT_CODE=$?
-    
+
     if [ $EXIT_CODE -ne 0 ]; then
         echo "Application exited with code $EXIT_CODE"
         echo "Check logs: $SNAP_USER_COMMON/logs/"
