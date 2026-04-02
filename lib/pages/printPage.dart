@@ -17,7 +17,7 @@ class PrintPage extends StatefulWidget {
 }
 
 class _PrintPageState extends State<PrintPage> {
-  late ByteData? _combinedImageData = ByteData(0);
+  ByteData? _combinedImageData;
   final ImageController imageController = Get.find();
 
   @override
