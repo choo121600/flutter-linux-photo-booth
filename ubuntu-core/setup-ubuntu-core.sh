@@ -89,13 +89,11 @@ chmod +x /usr/local/bin/photo-booth-backup.sh
 
 echo "Configuring Raspberry Pi 5 hardware optimizations..."
 if [ -f /boot/firmware/config.txt ]; then
-    echo "gpu_mem=128" >> /boot/firmware/config.txt
-    echo "disable_overscan=1" >> /boot/firmware/config.txt
-    echo "gpu_mem_256=128" >> /boot/firmware/config.txt
-    echo "gpu_mem_512=128" >> /boot/firmware/config.txt
-    echo "gpu_mem_1024=128" >> /boot/firmware/config.txt
-    echo "arm_freq=1500" >> /boot/firmware/config.txt
-    echo "over_voltage=2" >> /boot/firmware/config.txt
+    # Avoid duplicate entries
+    grep -q "disable_overscan" /boot/firmware/config.txt || echo "disable_overscan=1" >> /boot/firmware/config.txt
+    grep -q "dtoverlay=vc4-kms-v3d" /boot/firmware/config.txt || echo "dtoverlay=vc4-kms-v3d" >> /boot/firmware/config.txt
+    grep -q "max_framebuffers" /boot/firmware/config.txt || echo "max_framebuffers=2" >> /boot/firmware/config.txt
+    grep -q "camera_auto_detect" /boot/firmware/config.txt || echo "camera_auto_detect=1" >> /boot/firmware/config.txt
     echo "Raspberry Pi 5 hardware optimization applied"
 else
     echo "WARNING: /boot/firmware/config.txt not found - skipping hardware optimization"
@@ -126,13 +124,10 @@ echo "   ./build-snap.sh"
 echo "   scp linux-photo-booth_*.snap ubuntu@<raspberry-pi-ip>:~/"
 echo "   sudo snap install --dangerous linux-photo-booth_*.snap"
 echo ""
-echo "2. Connect snap interfaces:"
+echo "2. Connect snap interfaces (desktop, wayland, x11, opengl are auto-connected via gnome extension):"
 echo "   sudo snap connect linux-photo-booth:camera"
 echo "   sudo snap connect linux-photo-booth:cups-control"
-echo "   sudo snap connect linux-photo-booth:desktop"
-echo "   sudo snap connect linux-photo-booth:network"
-echo "   sudo snap connect linux-photo-booth:network-bind"
-echo "   sudo snap connect linux-photo-booth:wayland"
+echo "   sudo snap connect linux-photo-booth:raw-usb"
 echo ""
 echo "3. Configure Ubuntu Frame:"
 echo "   sudo snap set ubuntu-frame daemon.command='linux-photo-booth'"
