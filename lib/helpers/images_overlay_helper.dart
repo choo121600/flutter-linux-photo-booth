@@ -9,7 +9,7 @@ Future<ByteData> createOverlayImage({
   double firstRowTopSpacing = 0, // 1행의 위쪽 여백
   double firstColumnLeftSpacing = 0, // 1열의 왼쪽 여백
   double secondColumnLeftSpacing = 0, // 2번째 열의 왼쪽 여백
-  double secongRowTopSpacing = 0, // 2행의 위쪽 여백
+  double secondRowTopSpacing = 0, // 2행의 위쪽 여백
 }) async {
   final ui.Image background =
       await _decodeImageFromList(backgroundImage.buffer.asUint8List());
@@ -25,12 +25,15 @@ Future<ByteData> createOverlayImage({
     firstRowTopSpacing: firstRowTopSpacing,
     firstColumnLeftSpacing: firstColumnLeftSpacing,
     secondColumnLeftSpacing: secondColumnLeftSpacing,
-    secongRowTopSpacing: secongRowTopSpacing,
+    secondRowTopSpacing: secondRowTopSpacing,
   );
 
   final ByteData byteData = await _imageToByteData(combinedImage);
   return byteData;
 }
+
+const int _kSinglePhotoWidth = 1080;
+const int _kSinglePhotoHeight = 1440;
 
 Future<ui.Image> _drawImages({
   required ui.Image background,
@@ -40,7 +43,7 @@ Future<ui.Image> _drawImages({
   required double firstRowTopSpacing, // 1행의 위쪽 여백
   required double firstColumnLeftSpacing, // 1열의 왼쪽 여백
   required double secondColumnLeftSpacing, // 2번째 열의 왼쪽 여백
-  required double secongRowTopSpacing, // 2행의 위쪽 여백
+  required double secondRowTopSpacing, // 2행의 위쪽 여백
 }) async {
   final ui.PictureRecorder recorder = ui.PictureRecorder();
   final ui.Canvas canvas = ui.Canvas(recorder);
@@ -59,7 +62,7 @@ Future<ui.Image> _drawImages({
     final ByteData overlayData = overlayImages[0];
     final ui.Image overlay =
         await _decodeImageFromList(overlayData.buffer.asUint8List());
-    final ui.Image resizedOverlay = await _resizeImage(overlay, 1080, 1440);
+    final ui.Image resizedOverlay = await _resizeImage(overlay, _kSinglePhotoWidth, _kSinglePhotoHeight);
 
     final double overlayX = startX;
     final double overlayY = startY;
@@ -87,7 +90,7 @@ Future<ui.Image> _drawImages({
         }
       } else {
         // 2행
-        startY = overlayHeight + secongRowTopSpacing;
+        startY = overlayHeight + secondRowTopSpacing;
         if ((i + 1) % colCount == 0) {
           // 2열
           startX = overlayWidth + secondColumnLeftSpacing;

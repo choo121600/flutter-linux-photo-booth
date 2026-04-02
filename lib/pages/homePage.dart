@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-const List<Widget> icons = <Widget>[
-  Icon(Icons.square_rounded, size: 48),
-  Icon(Icons.window, size: 48),
-];
-
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
 

@@ -48,7 +48,7 @@ class MyApp extends StatelessWidget {
           page: () => const PrintPage(),
         )
       ],
-      title: 'Flutter Demo',
+      title: 'Linux Photo Booth',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
