@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -8,6 +9,9 @@ import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 import '../controllers/imageController.dart';
 import '../helpers/images_overlay_helper.dart';
+
+const String _kPrintServerUrl = 'http://localhost:5000/print';
+const Duration _kPrintTimeout = Duration(seconds: 10);
 
 class PrintPage extends StatefulWidget {
   const PrintPage({Key? key}) : super(key: key);
@@ -27,23 +31,32 @@ class _PrintPageState extends State<PrintPage> {
   }
 
   void _loadCombinedImage() async {
-    final ByteData backgroundImage =
-        await rootBundle.load('assets/images/frame_vertical_1.png');
+    try {
+      final ByteData backgroundImage =
+          await rootBundle.load('assets/images/frame_vertical_1.png');
 
-    final List<ByteData> overlayImages = imageController.capturedImages;
+      final List<ByteData> overlayImages = imageController.capturedImages;
 
-    final ByteData combinedImage = await createOverlayImage(
-      backgroundImage: backgroundImage,
-      overlayImages: overlayImages,
-      firstRowTopSpacing: 226, // 1행의 위쪽 여백
-      firstColumnLeftSpacing: 60, // 1열의 왼쪽 여백
-      secondColumnLeftSpacing: 15, // 2번째 열의 왼쪽 여백
-      secongRowTopSpacing: 65, // 2행의 위쪽 여백
-    );
+      final ByteData combinedImage = await createOverlayImage(
+        backgroundImage: backgroundImage,
+        overlayImages: overlayImages,
+        firstRowTopSpacing: 226, // 1행의 위쪽 여백
+        firstColumnLeftSpacing: 60, // 1열의 왼쪽 여백
+        secondColumnLeftSpacing: 15, // 2번째 열의 왼쪽 여백
+        secongRowTopSpacing: 65, // 2행의 위쪽 여백
+      );
 
-    setState(() {
-      _combinedImageData = combinedImage;
-    });
+      if (mounted) {
+        setState(() {
+          _combinedImageData = combinedImage;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading combined image: $e');
+      if (mounted) {
+        _showMessage('Failed to load image: $e');
+      }
+    }
   }
 
   @override
@@ -107,12 +120,12 @@ class _PrintPageState extends State<PrintPage> {
     }
 
     try {
-      final url = Uri.parse('http://localhost:5000/print');
-      
+      final url = Uri.parse(_kPrintServerUrl);
+
       // 이미지 데이터를 base64로 인코딩
       final List<int> imageBytes = _combinedImageData!.buffer.asUint8List();
       final String base64Image = base64Encode(imageBytes);
-      
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -120,17 +133,20 @@ class _PrintPageState extends State<PrintPage> {
           'imageData': base64Image,
           'filename': 'photo_booth_print.png'
         }),
-      );
+      ).timeout(_kPrintTimeout);
 
       if (response.statusCode == 200) {
-        print('Image sent for printing successfully');
+        debugPrint('Image sent for printing successfully');
         _showMessage('Print job sent successfully!');
       } else {
-        print('Failed to print. Error ${response.statusCode}');
+        debugPrint('Failed to print. Error ${response.statusCode}');
         _showMessage('Failed to print. Error: ${response.statusCode}');
       }
+    } on TimeoutException {
+      debugPrint('Print request timed out');
+      _showMessage('Print request timed out. Is the print server running?');
     } catch (e) {
-      print('Error printing image: $e');
+      debugPrint('Error printing image: $e');
       _showMessage('Error printing image: $e');
     }
   }
