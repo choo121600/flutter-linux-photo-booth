@@ -100,7 +100,8 @@ class _PrintPageState extends State<PrintPage> {
                 padding: const EdgeInsets.all(16.0),
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.popUntil(context, (route) => route.isFirst);
+                    imageController.reset();
+                    Get.offAllNamed('/');
                   },
                   child: const Text('Go to Home'),
                 ),
