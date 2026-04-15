@@ -7,8 +7,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_gstreamer_player/flutter_gstreamer_player.dart';
 import '../controllers/imageController.dart';
 
-GlobalKey cameraKey = GlobalKey();
-
 class TakePicturePage extends StatefulWidget {
   const TakePicturePage({Key? key}) : super(key: key);
 
@@ -19,6 +17,7 @@ class TakePicturePage extends StatefulWidget {
 class _TakePicturePageState extends State<TakePicturePage>
     with TickerProviderStateMixin {
   final ImageController imageController = Get.put(ImageController());
+  final GlobalKey cameraKey = GlobalKey();
   int _countdown = 5;
   Timer? _timer;
   int _picturesTaken = 0;
@@ -36,6 +35,7 @@ class _TakePicturePageState extends State<TakePicturePage>
       vsync: this,
       duration: Duration(milliseconds: 300),
     );
+    _selectedType = Get.arguments as int?;
     _initializeCamera();
   }
 
@@ -59,14 +59,13 @@ class _TakePicturePageState extends State<TakePicturePage>
 
   @override
   void dispose() {
+    _timer?.cancel();
     _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    _selectedType = Get.arguments as int?;
-
     if (_selectedType == null || _selectedType! <= 0) {
       return Scaffold(
         appBar: AppBar(
@@ -205,6 +204,7 @@ class _TakePicturePageState extends State<TakePicturePage>
     });
 
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (!mounted) return;
       setState(() {
         if (_countdown > 0) {
           _countdown--;
@@ -342,6 +342,7 @@ class _TakePicturePageState extends State<TakePicturePage>
   }
 
   void _captureAndSaveImage() async {
+    if (!mounted) return;
     try {
       RenderRepaintBoundary boundary =
           cameraKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
