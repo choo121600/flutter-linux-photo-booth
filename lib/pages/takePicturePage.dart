@@ -16,6 +16,9 @@ class TakePicturePage extends StatefulWidget {
 
 class _TakePicturePageState extends State<TakePicturePage>
     with TickerProviderStateMixin {
+  static const double kPreviewWidth = 525.0;
+  static const double kPreviewHeight = 700.0;
+
   final ImageController imageController = Get.put(ImageController());
   final GlobalKey cameraKey = GlobalKey();
   int _countdown = 5;
@@ -48,12 +51,12 @@ class _TakePicturePageState extends State<TakePicturePage>
         _cameraInitialized = true;
       });
       
-      print('Camera initialization completed');
+      debugPrint('Camera initialization completed');
     } catch (e) {
       setState(() {
         _cameraError = 'Camera initialization failed: $e';
       });
-      print('Camera initialization error: $e');
+      debugPrint('Camera initialization error: $e');
     }
   }
 
@@ -117,8 +120,8 @@ class _TakePicturePageState extends State<TakePicturePage>
                 children: [
                   Center(
                     child: SizedBox(
-                      width: 525.0,
-                      height: 700.0,
+                      width: kPreviewWidth,
+                      height: kPreviewHeight,
                       child: Stack(
                         children: [
                           RepaintBoundary(
@@ -190,8 +193,8 @@ class _TakePicturePageState extends State<TakePicturePage>
       duration: Duration(milliseconds: 300),
       opacity: _animationController.value,
       child: Container(
-        width: 525.0,
-        height: 700.0,
+        width: kPreviewWidth,
+        height: kPreviewHeight,
         color: Colors.white,
       ),
     );
@@ -224,8 +227,8 @@ class _TakePicturePageState extends State<TakePicturePage>
     // 에러가 있으면 에러 화면 표시
     if (_cameraError != null) {
       return Container(
-        width: 525.0,
-        height: 700.0,
+        width: kPreviewWidth,
+        height: kPreviewHeight,
         color: Colors.black,
         child: Center(
           child: Column(
@@ -258,8 +261,8 @@ class _TakePicturePageState extends State<TakePicturePage>
     // 초기화 중이면 로딩 화면 표시
     if (!_cameraInitialized) {
       return Container(
-        width: 525.0,
-        height: 700.0,
+        width: kPreviewWidth,
+        height: kPreviewHeight,
         color: Colors.black,
         child: Center(
           child: Column(
@@ -283,15 +286,15 @@ class _TakePicturePageState extends State<TakePicturePage>
         pipeline: _getCameraPipeline(),
       );
     } catch (e) {
-      print('GStreamer initialization error: $e');
+      debugPrint('GStreamer initialization error: $e');
       if (mounted) {
         setState(() {
           _cameraError = 'GStreamer initialization failed: $e';
         });
       }
       return Container(
-        width: 525.0,
-        height: 700.0,
+        width: kPreviewWidth,
+        height: kPreviewHeight,
         color: Colors.black,
         child: Center(
           child: Column(
@@ -361,7 +364,7 @@ class _TakePicturePageState extends State<TakePicturePage>
         });
       }
     } catch (e) {
-      print('Error capturing image: $e');
+      debugPrint('Error capturing image: $e');
       setState(() {
         _takingPicture = false;
       });

@@ -43,7 +43,7 @@ class _PrintPageState extends State<PrintPage> {
         firstRowTopSpacing: 226, // 1행의 위쪽 여백
         firstColumnLeftSpacing: 60, // 1열의 왼쪽 여백
         secondColumnLeftSpacing: 15, // 2번째 열의 왼쪽 여백
-        secongRowTopSpacing: 65, // 2행의 위쪽 여백
+        secondRowTopSpacing: 65, // 2행의 위쪽 여백
       );
 
       if (mounted) {
