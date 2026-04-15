@@ -134,6 +134,15 @@ parts:
     organize:
       run-booth: bin/run-booth
 
+  gpu-2404:
+    after: [flutter-app]
+    source: https://github.com/canonical/gpu-snap.git
+    plugin: dump
+    override-prime: |
+      craftctl default
+      ${CRAFT_PART_SRC}/bin/gpu-2404-wrapper-generator \
+        --app-name=linux-photo-booth
+
   config:
     plugin: dump
     source: ubuntu-core/
