@@ -138,7 +138,10 @@ Future<ui.Image> _resizeImage(ui.Image image, int width, int height) async {
 Future<ByteData> _imageToByteData(ui.Image image) async {
   final ByteData? byteData =
       await image.toByteData(format: ui.ImageByteFormat.png);
-  return byteData!;
+  if (byteData == null) {
+    throw StateError('Failed to convert image to PNG byte data');
+  }
+  return byteData;
 }
 
 Future<ui.Image> _decodeImageFromList(List<int> list) async {
