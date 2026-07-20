@@ -1,0 +1,27 @@
+#!/bin/bash
+# wayland-launch: command-chain wrapper for the Ubuntu Core kiosk daemon.
+# Ubuntu Frame runs as its own compositor daemon; this waits for its Wayland
+# socket to appear before launching the app so the daemon does not crash-loop
+# during the boot race (restart-condition:always absorbs the rest).
+set -e
+
+# Ubuntu Frame's Wayland socket + the `wayland` interface's apparmor access live in the
+# BASE runtime dir (/run/user/<uid>/wayland-0), NOT the snap-specific
+# /run/user/<uid>/snap.<name>/ that snapd exports by default. Force the base dir so both
+# the socket wait below and the launched app (run-booth -> Flutter) reach the compositor.
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
+
+socket="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+# Wait up to ~30s for the compositor socket.
+for _ in $(seq 1 60); do
+    [ -S "$socket" ] && break
+    sleep 0.5
+done
+
+if [ ! -S "$socket" ]; then
+    echo "wayland-launch: Wayland socket $socket not found; exiting for restart" >&2
+    exit 1
+fi
+
+exec "$@"

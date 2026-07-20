@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
@@ -28,7 +29,7 @@ class _TakePicturePageState extends State<TakePicturePage>
   bool _takingPicture = false;
   bool _cameraInitialized = false;
   String? _cameraError;
-  bool _useTestPattern = true; // 먼저 테스트 패턴으로 시작
+  bool _useTestPattern = false; // 키오스크: 기본은 실제 카메라
   late AnimationController _animationController;
 
   @override
@@ -284,6 +285,8 @@ class _TakePicturePageState extends State<TakePicturePage>
     try {
       return GstPlayer(
         pipeline: _getCameraPipeline(),
+        width: kPreviewWidth,
+        height: kPreviewHeight,
       );
     } catch (e) {
       debugPrint('GStreamer initialization error: $e');
@@ -323,12 +326,26 @@ class _TakePicturePageState extends State<TakePicturePage>
 
   String _getCameraPipeline() {
     if (_useTestPattern) {
-      // 가장 안전한 테스트 패턴
+      // 진단용 테스트 패턴 (수동 전환 시)
       return '''videotestsrc pattern=ball ! video/x-raw,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
-    } else {
-      // 실제 카메라 (테스트 패턴이 성공한 후에만 시도)
-      return '''v4l2src device=/dev/video0 ! video/x-raw,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
     }
+    // 카메라 소스 무관: run-booth가 감지해 전달한 종류/디바이스 사용.
+    final String kind =
+        (Platform.environment['BOOTH_CAMERA_KIND'] ?? '').toLowerCase();
+    final String device =
+        Platform.environment['DEFAULT_CAMERA_DEVICE'] ?? '/dev/video0';
+    if (kind == 'libcamera') {
+      // Raspberry Pi CSI (libcamera / PiSP). Two things matter here:
+      //  * libcamerasrc defaults to the sensor's RAW Bayer stream
+      //    (video/x-bayer,bggr16le) which videoconvert cannot consume, so an
+      //    unconstrained `video/x-raw` fails to negotiate — request NV12.
+      //  * The imx219 640x480 sensor mode is a narrow-FOV CROP (looks zoomed in);
+      //    capture the full-FOV binned mode (1640x1232) and scale down instead.
+      // Verified on-device with gst-launch.
+      return '''libcamerasrc ! video/x-raw,format=NV12,width=1640,height=1232 ! videoconvert ! videoscale ! video/x-raw,format=RGBA,width=640,height=480 ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
+    }
+    // USB UVC (v4l2).
+    return '''v4l2src device=$device ! video/x-raw,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
   }
   
   void _switchToCamera() {

@@ -6,15 +6,12 @@
 #define GstPlayer_GstInit_Arg1          "/home/1.ogg"
 
 GstPlayer::GstPlayer(const std::vector<std::string>& cmd_arguments) {
-  if (cmd_arguments.empty()) {
-    char  arg0[] = GstPlayer_GstInit_ProgramName;
-    char  arg1[] = GstPlayer_GstInit_Arg1;
-    char* argv[] = { &arg0[0], &arg1[0], NULL };
-    int   argc   = (int)(sizeof(argv) / sizeof(argv[0])) - 1;
-    gst_init(&argc, (char ***)&argv);
-  } else {
-    // TODO handle this case, pass command line arguments to gstreamer
-  }
+  // Initialize GStreamer without command-line option parsing.
+  // The previous code passed a malformed argv (a stack array cast to
+  // char***), which made gst_init crash inside g_option_context_parse.
+  // Passing NULL/NULL is explicitly supported and skips option parsing.
+  (void)cmd_arguments;
+  gst_init(nullptr, nullptr);
 }
 
 GstPlayer::~GstPlayer() {
@@ -83,36 +80,32 @@ void GstPlayer::freeGst(void) {
 }
 
 GstFlowReturn GstPlayer::newSample(GstAppSink *sink, gpointer gSelf) {
-  GstSample* sample = NULL;
-  GstMapInfo bufferInfo;
+  GstPlayer* self = static_cast<GstPlayer*>(gSelf);
+  GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(self->sink_));
+  if (sample == NULL) {
+    return GST_FLOW_OK;
+  }
 
-  GstPlayer* self = static_cast<GstPlayer* >(gSelf);
-  sample = gst_app_sink_pull_sample(GST_APP_SINK(self->sink_));
+  GstCaps* sampleCaps = gst_sample_get_caps(sample);
+  GstBuffer* buffer_ = gst_sample_get_buffer(sample);
+  GstVideoInfo video_info;
+  gst_video_info_init(&video_info);
 
-  if(sample != NULL) {
-    GstBuffer *buffer_ = gst_sample_get_buffer(sample);
-    if(buffer_ != NULL) {
-      gst_buffer_map(buffer_, &bufferInfo, GST_MAP_READ);
-
-      // Get video width and height
-      GstVideoFrame vframe;
-      GstVideoInfo video_info;
-      GstCaps* sampleCaps = gst_sample_get_caps(sample);
-      gst_video_info_from_caps(&video_info, sampleCaps);
-      gst_video_frame_map (&vframe, &video_info, buffer_, GST_MAP_READ);
-
+  if (sampleCaps != NULL && buffer_ != NULL &&
+      gst_video_info_from_caps(&video_info, sampleCaps)) {
+    GstMapInfo bufferInfo;
+    if (gst_buffer_map(buffer_, &bufferInfo, GST_MAP_READ)) {
       self->video_callback_(
-          (uint8_t*)bufferInfo.data,
-          video_info.size,
+          bufferInfo.data,
+          (uint32_t)bufferInfo.size,
           video_info.width,
           video_info.height,
           video_info.stride[0]);
-
       gst_buffer_unmap(buffer_, &bufferInfo);
-      gst_video_frame_unmap(&vframe);
     }
-    gst_sample_unref(sample);
   }
+
+  gst_sample_unref(sample);
 
   return GST_FLOW_OK;
 }

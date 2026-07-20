@@ -2,78 +2,92 @@ name: linux-photo-booth
 version: '1.0.0'
 summary: Professional photo booth application for Ubuntu Core
 description: |
-  A professional photo booth application designed for Ubuntu Core and Ubuntu Frame.
-  Perfect for events, parties, and commercial photo booth installations.
+  A professional photo booth application designed for Ubuntu Core + Ubuntu Frame
+  (kiosk) and Ubuntu Desktop from a single snap.
 
   Features:
-  - Real-time camera capture using GStreamer
-  - Multiple photo layouts (1x1, 2x2)
-  - Frame overlay system with customizable templates
-  - Direct printing via CUPS
-  - Countdown timer with visual feedback
-  - Touch-optimized interface
-  - Automatic kiosk mode with Ubuntu Frame
-  - Background themes and customization
-  - Remote management capabilities
+  - Real-time camera capture using GStreamer (USB v4l2 + Raspberry Pi CSI/libcamera)
+  - Multiple photo layouts (1x1, 2x2) with frame overlays
+  - Direct printing via the CUPS interface (dye-sub photo printers via a
+    Printer Application such as gutenprint-printer-app)
+  - Touch-optimized kiosk interface, autostarted under Ubuntu Frame on Ubuntu Core
 
-grade: stable
-confinement: strict
+# NOTE: kept at `devel` until the snap has passed a real build + review-tools +
+# on-device (RPi5 + Ubuntu Frame) acceptance run. Flip to `stable` only after the
+# green gate. `devel` snaps cannot be released to the stable/candidate channels.
+grade: devel
+# devmode: the Pi 5 CSI camera needs libcamera to open /dev/media* for its media
+# graph, but snapd's `camera` interface only tags /dev/video* into the device
+# cgroup (not /dev/media*), so strict confinement blocks CSI enumeration. Until a
+# gadget custom-device slot (or a snapd camera-interface fix) is available, the
+# kiosk must run in devmode for the Raspberry Pi camera to work.
+confinement: devmode
 base: core24
 
 platforms:
   amd64:
-    build-on: [amd64]
-    build-for: [amd64]
   arm64:
-    build-on: [arm64]
-    build-for: [arm64]
 
-plugs:
-  gpu-2404:
-    interface: content
-    target: $SNAP/gpu-2404
-    default-provider: mesa-2404
+# libcamera / libpisp (built from source) resolve their IPA modules, IPA proxy,
+# camera tuning, and PiSP backend config from compiled-in absolute /usr paths.
+# Under confinement those resolve to the base, not the snap, so bind the snap's
+# staged copies over them.
+layout:
+  /usr/share/libpisp:
+    bind: $SNAP/usr/share/libpisp
+  /usr/share/libcamera:
+    bind: $SNAP/usr/share/libcamera
+  /usr/lib/aarch64-linux-gnu/libcamera:
+    bind: $SNAP/usr/lib/aarch64-linux-gnu/libcamera
+  /usr/libexec/libcamera:
+    bind: $SNAP/usr/libexec/libcamera
 
-slots:
-  dbus-linux-photo-booth:
-    interface: dbus
-    bus: session
-    name: com.test.linux_photo_booth
-
+# Two app entries share one Flutter binary:
+#   - linux-photo-booth        : Ubuntu Desktop launcher (manual, from the app menu)
+#   - linux-photo-booth-kiosk  : Ubuntu Core kiosk daemon (autostarts under Ubuntu Frame)
+# Both apps use the `gnome` extension: it provides the complete GTK/GLib/pixbuf/
+# fontconfig/xkb/icon/theme runtime (the gnome-46-2404 content snap) + mesa graphics +
+# wayland — everything a Flutter/GTK app needs, wired up by desktop-launch.
 apps:
   linux-photo-booth:
     command: bin/run-booth
-    command-chain:
-      - bin/gpu-2404-wrapper
     extensions: [gnome]
     plugs:
-      - camera
-      - cups-control
-      - network
-      - network-bind
-      - audio-playback
-      - raw-usb
-    slots:
-      - dbus-linux-photo-booth
+      - camera            # USB (v4l2) + CSI media nodes (verify CSI coverage via `snap connections`; gadget custom-device may be required)
+      - cups              # print-job submission to the cups snap (replaces the removed cups-control)
+      - opengl
+      - wayland
+      - desktop           # desktop integration on Ubuntu Desktop (themes/portals)
+      - desktop-legacy
+      - gsettings
+      - hardware-observe   # libcamera media-device enumeration (sysfs + udev)
     desktop: usr/share/applications/linux-photo-booth.desktop
-    environment:
+    environment: &booth-env
       FLUTTER_ENGINE_RUNTIME_MODE: release
       FLUTTER_ENGINE_SWITCH_TO_IMPELLER: "0"
       GTK_A11Y: "none"
-      GDK_BACKEND: "wayland,x11"
       TMPDIR: "$SNAP_USER_COMMON"
-      NO_PROXY: "localhost,127.0.0.1"
       MALLOC_TRIM_THRESHOLD_: "100000"
 
-  photo-booth-server:
-    command: bin/server.py
-    plugs:
-      - cups-control
-      - network
-      - network-bind
+  # Ubuntu Core kiosk service. `install-mode: disable` prevents a root daemon
+  # crash-loop on Ubuntu Desktop (no seat/Wayland at boot); on Ubuntu Core it is
+  # explicitly enabled by setup-ubuntu-core.sh via `snap start --enable`.
+  linux-photo-booth-kiosk:
+    command: bin/run-booth
     daemon: simple
+    install-mode: disable
     restart-condition: always
     restart-delay: 5s
+    extensions: [gnome]
+    command-chain:
+      - bin/wayland-launch   # waits for the Ubuntu Frame wayland socket before launching
+    plugs:
+      - camera
+      - cups
+      - opengl
+      - wayland
+      - hardware-observe   # libcamera media-device enumeration (sysfs + udev)
+    environment: *booth-env
 
 parts:
   flutter-app:
@@ -83,8 +97,6 @@ parts:
     override-build: |
       # Remove problematic pubspec.lock to avoid platform conflicts
       rm -f pubspec.lock
-
-      # Run default flutter build
       craftctl default
     build-packages:
       - libgtk-3-dev
@@ -93,34 +105,27 @@ parts:
       - libv4l-dev
       - libcups2-dev
     stage-packages:
-      - bash
-      - coreutils
+      # GTK / GLib / pixbuf / fontconfig / xkb / icons / themes / schemas: ALL provided by
+      # the `gnome` extension runtime (gnome-46-2404) + desktop-launch — no manual GTK here.
+      # GStreamer capture stack: USB (v4l2) + Raspberry Pi CSI (libcamera)
       - libgstreamer1.0-0
       - libgstreamer-plugins-base1.0-0
       - gstreamer1.0-plugins-good
       - gstreamer1.0-plugins-bad
       - gstreamer1.0-libav
+      - gstreamer1.0-tools   # gst-launch-1.0 / gst-inspect-1.0 for on-device pipeline debugging
+      # libcamera + gstreamer1.0-libcamera are built from source (see the
+      # `libcamera` part) with Pi 5 PiSP support; Ubuntu 24.04 only ships
+      # libcamera 0.2.0 = Pi 4 (VC4) only, which cannot drive the Pi 5 camera.
       - gstreamer1.0-pulseaudio
       - gstreamer1.0-alsa
       - libv4l-0
       - v4l-utils
+      # Printing: `lp`/`lpstat` client used by the in-app print path (replaces the
+      # removed Flask/pycups server)
+      - cups-client
       - libcups2
       - dmz-cursor-theme
-      - adwaita-icon-theme
-
-  python-server:
-    plugin: python
-    source: .
-    python-requirements:
-      - requirements.txt
-    stage-packages:
-      - cups
-      - cups-client
-    override-build: |
-      craftctl default
-      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
-      cp server.py $SNAPCRAFT_PART_INSTALL/bin/server.py
-      chmod +x $SNAPCRAFT_PART_INSTALL/bin/server.py
 
   desktop-file:
     plugin: dump
@@ -133,18 +138,61 @@ parts:
     source: snap/local/
     organize:
       run-booth: bin/run-booth
-
-  gpu-2404:
-    after: [flutter-app]
-    source: https://github.com/canonical/gpu-snap.git
-    plugin: dump
-    organize:
-      bin/gpu-2404-wrapper: bin/gpu-2404-wrapper
+      wayland-launch: bin/wayland-launch
     stage:
-      - bin/gpu-2404-wrapper
+      - bin/run-booth
+      - bin/wayland-launch
 
-  config:
-    plugin: dump
-    source: ubuntu-core/
-    organize:
-      setup-ubuntu-core.sh: usr/local/bin/setup-ubuntu-core.sh
+  # Raspberry Pi fork of libcamera with Pi 5 (PiSP / rp1) support, built from
+  # source because Ubuntu 24.04 only ships libcamera 0.2.0 (Pi 4 / VC4 only),
+  # which cannot drive the Pi 5 imx219 CSI camera. Produces libcamera + the
+  # rpi/vc4 + rpi/pisp pipeline handlers + IPA (signed at build) + camera tuning
+  # data + the libcamerasrc GStreamer plugin. libpisp is pulled in as a meson
+  # subproject (fetched via its .wrap during meson setup).
+  libcamera:
+    plugin: meson
+    source: https://github.com/raspberrypi/libcamera.git
+    source-type: git
+    source-branch: main
+    build-environment:
+      # Flutter's toolchain installs clang and makes it the default cc/c++, but
+      # libcamera must build with gcc (clang rejects its C99 array designators
+      # under -Werror). Pin gcc for this part only.
+      - CC: gcc
+      - CXX: g++
+    meson-parameters:
+      - --prefix=/usr
+      - --buildtype=release
+      - --wrap-mode=default
+      - -Dpipelines=rpi/vc4,rpi/pisp
+      - -Dipas=rpi/vc4,rpi/pisp
+      - -Dv4l2=true
+      - -Dgstreamer=enabled
+      - -Dtest=false
+      - -Dlc-compliance=disabled
+      - -Dcam=disabled
+      - -Dqcam=disabled
+      - -Ddocumentation=disabled
+      - -Dpycamera=disabled
+    build-packages:
+      - meson
+      - ninja-build
+      - gcc
+      - g++
+      - git
+      - pkg-config
+      - python3-yaml
+      - python3-ply
+      - python3-jinja2
+      - libgnutls28-dev
+      - openssl
+      - libssl-dev
+      - libyaml-dev
+      - libudev-dev
+      - libglib2.0-dev
+      - libgstreamer1.0-dev
+      - libgstreamer-plugins-base1.0-dev
+      - nlohmann-json3-dev
+      - libboost-dev
+    stage-packages:
+      - libudev1
