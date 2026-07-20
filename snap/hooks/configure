@@ -1,0 +1,30 @@
+#!/bin/bash
+# configure hook: exposes print media as snap configuration.
+#   snap set linux-photo-booth print.media=4x6 print.borderless=true
+# Defaults target dye-sub photo printers (4x6 borderless). Values are written to
+# $SNAP_DATA/print-config.env, which run-booth sources for the app.
+set -e
+
+media="$(snapctl get print.media || true)"
+borderless="$(snapctl get print.borderless || true)"
+
+if [ -z "$media" ]; then
+    media="4x6"
+    snapctl set print.media="4x6"
+fi
+if [ -z "$borderless" ]; then
+    borderless="true"
+    snapctl set print.borderless="true"
+fi
+
+case "$borderless" in
+    true|false) ;;
+    *) echo "print.borderless must be true or false" >&2; exit 1 ;;
+esac
+
+mkdir -p "$SNAP_DATA"
+umask 022
+cat > "$SNAP_DATA/print-config.env" <<EOF
+BOOTH_PRINT_MEDIA=$media
+BOOTH_PRINT_BORDERLESS=$borderless
+EOF

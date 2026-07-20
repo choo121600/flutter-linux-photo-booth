@@ -1,202 +1,99 @@
 #!/bin/bash
-# Linux Photo Booth Launcher for Ubuntu Core & Ubuntu Desktop
-# Optimized for Raspberry Pi 5 (ARM64) and x86_64 platforms
+# Linux Photo Booth launcher — Ubuntu Core (Ubuntu Frame kiosk) + Ubuntu Desktop.
+# Wayland-only (Ubuntu Frame and modern desktop sessions are Wayland). The legacy
+# X11 fallback and x86-specific GLX tuning were removed; the `gpu` extension now
+# provides mesa/gpu-2404, so only app-specific GStreamer/GTK runtime env remains.
 
-# Resolve architecture triplet at runtime (SNAPCRAFT_ARCH_TRIPLET is build-time only)
-if [ -z "$CRAFT_ARCH_TRIPLET" ]; then
-    ARCH_TRIPLET=$(dpkg-architecture -qDEB_HOST_MULTIARCH 2>/dev/null)
-    if [ -z "$ARCH_TRIPLET" ]; then
-        case "$(uname -m)" in
-            aarch64|arm64) ARCH_TRIPLET="aarch64-linux-gnu" ;;
-            x86_64)        ARCH_TRIPLET="x86_64-linux-gnu" ;;
-            *)             ARCH_TRIPLET="$(uname -m)-linux-gnu" ;;
-        esac
-    fi
-else
+# Resolve architecture triplet at runtime.
+if [ -n "$CRAFT_ARCH_TRIPLET" ]; then
     ARCH_TRIPLET="$CRAFT_ARCH_TRIPLET"
+else
+    case "$(uname -m)" in
+        aarch64|arm64) ARCH_TRIPLET="aarch64-linux-gnu" ;;
+        x86_64)        ARCH_TRIPLET="x86_64-linux-gnu" ;;
+        *)             ARCH_TRIPLET="$(uname -m)-linux-gnu" ;;
+    esac
 fi
 
-# Dynamic user runtime directory (Ubuntu Core compatible)
-export DISPLAY="${DISPLAY:-:0}"
+# Wayland runtime.
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
-
-# Display server detection (Ubuntu Core uses Wayland, Desktop supports both)
-if [ -n "$WAYLAND_DISPLAY" ] && [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
-    export XDG_SESSION_TYPE="wayland"
-    export GDK_BACKEND="wayland"
-    echo "Using Wayland display server"
-else
-    export XDG_SESSION_TYPE="x11"
-    export GDK_BACKEND="x11"
-    echo "Using X11 display server"
-fi
-
-# GTK environment (Ubuntu Core optimized)
+export XDG_SESSION_TYPE=wayland
+export GDK_BACKEND=wayland
 export GTK_A11Y=none
-export GDK_SCALE=1
-export GDK_DPI_SCALE=1
 
-# Cursor theme fix (prevents segfault)
-export XCURSOR_THEME="DMZ-White"
-export XCURSOR_SIZE=24
+# Cursor theme (prevents a known GTK cursor segfault).
+export XCURSOR_THEME="${XCURSOR_THEME:-DMZ-White}"
 export XCURSOR_PATH="$SNAP/usr/share/icons:${XCURSOR_PATH:-/usr/share/icons}"
 
-# Architecture-specific optimization
-ARCH=$(uname -m)
-if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    # Raspberry Pi 5 ARM64 optimization
-    export MESA_GL_VERSION_OVERRIDE="3.0"
-    export GST_GL_PLATFORM=egl
-    export GST_GL_API=gles2
-
-    # Raspberry Pi 5 GPU driver settings
-    export VC_GPU_ENABLE=1
-    export GST_V4L2_USE_LIBV4L2=1
-
-    # GStreamer error handling
-    export GST_DEBUG_NO_COLOR=1
-    export GST_DEBUG_DUMP_DOT_DIR="$SNAP_USER_COMMON/gst-debug"
-    mkdir -p "$SNAP_USER_COMMON/gst-debug"
-
-    echo "ARM64 optimization enabled for Raspberry Pi 5"
-else
-    # x86_64 optimization
-    export MESA_GL_VERSION_OVERRIDE="3.3"
-    export GST_GL_PLATFORM=glx
-    export GST_GL_API=opengl
-    echo "x86_64 optimization enabled"
-fi
-
-# GStreamer configuration (runtime paths with resolved arch triplet)
+# Staged GStreamer plugins (USB v4l2 + Raspberry Pi CSI/libcamera).
 GST_PATH="$SNAP/usr/lib/$ARCH_TRIPLET/gstreamer-1.0"
 export GST_PLUGIN_PATH="$GST_PATH"
 export GST_PLUGIN_SYSTEM_PATH="$GST_PATH"
 export GST_PLUGIN_SCANNER="$SNAP/usr/libexec/gstreamer-1.0/gst-plugin-scanner"
-export GST_REGISTRY_FORK=no
-export GST_DEBUG=1
 export GST_REGISTRY="$SNAP_USER_COMMON/gstreamer-1.0/registry.bin"
+export GST_REGISTRY_FORK=no
+mkdir -p "$SNAP_USER_COMMON/gstreamer-1.0" "$SNAP_USER_COMMON/logs"
 
-# Allow registry generation on first run, skip on subsequent runs
-if [ -f "$GST_REGISTRY" ]; then
-    export GST_REGISTRY_UPDATE=no
+# libcamera / libpisp find their IPA modules, IPA proxy, camera tuning, and PiSP
+# backend config at their compiled-in /usr paths, which snap `layout:` binds to
+# the snap's staged copies (see snapcraft.yaml). No env overrides needed here.
+
+# GTK desktop runtime is provided by the `gnome` extension (gnome-46-2404) via its
+# desktop-launch command-chain: pixbuf loaders/cache, fontconfig, xkb, icons, schemas.
+
+# ARM64 (Raspberry Pi 5) GStreamer GL hints.
+if [ "$(uname -m)" = "aarch64" ] || [ "$(uname -m)" = "arm64" ]; then
+    export GST_GL_PLATFORM=egl
+    export GST_GL_API=gles2
 fi
 
-# GDK Pixbuf configuration
-export GDK_PIXBUF_MODULE_FILE="$SNAP/usr/lib/$ARCH_TRIPLET/gdk-pixbuf-2.0/2.10.0/loaders.cache"
-export GDK_PIXBUF_MODULEDIR="$SNAP/usr/lib/$ARCH_TRIPLET/gdk-pixbuf-2.0/2.10.0/loaders"
-
-# GTK and theme settings
-export GTK_PATH="$SNAP/usr/lib/$ARCH_TRIPLET/gtk-3.0"
-export XDG_DATA_DIRS="$SNAP/usr/share:${XDG_DATA_DIRS:-/usr/share}"
-export XDG_CONFIG_DIRS="$SNAP/etc/xdg:${XDG_CONFIG_DIRS:-/etc/xdg}"
-
-# GIO module configuration
-export GIO_MODULE_DIR="$SNAP/usr/lib/$ARCH_TRIPLET/gio/modules"
-if [ -d "$GIO_MODULE_DIR" ]; then
-    export GIO_EXTRA_MODULES="$GIO_MODULE_DIR"
-fi
-
-# Library paths (optimized for snap environment)
-export LD_LIBRARY_PATH="$SNAP/lib:$SNAP/usr/lib:$SNAP/usr/lib/$ARCH_TRIPLET:$LD_LIBRARY_PATH"
-
-# Flutter environment
-export FLUTTER_ENGINE_SWITCH_TO_IMPELLER=0
-export TMPDIR="${SNAP_USER_COMMON:-/tmp}"
-export FLUTTER_ENGINE_RUNTIME_MODE=release
-export FLUTTER_DPI_SCALE=1.0
-
-# PATH setup
-export PATH="$SNAP/usr/bin:$SNAP/bin:$PATH"
-
-# Create required directories
-mkdir -p "$SNAP_USER_COMMON/gstreamer-1.0"
-mkdir -p "$SNAP_USER_COMMON/logs"
-
-# X11 authentication (if available)
-if [ "$XDG_SESSION_TYPE" = "x11" ] && [ -f "$HOME/.Xauthority" ]; then
-    export XAUTHORITY="$HOME/.Xauthority"
-    echo "X11 authority file found and configured"
-fi
-
-# Camera device detection
-CAMERA_FOUND=0
-USABLE_CAMERA=""
-
-for i in $(seq 0 5); do
-    if [ -r "/dev/video$i" ]; then
-        if command -v v4l2-ctl >/dev/null 2>&1; then
-            CAPS=$(v4l2-ctl --device="/dev/video$i" --list-formats 2>/dev/null | grep -c "YUYV\|RGB\|YUV")
-            if [ "$CAPS" -gt 0 ]; then
-                echo "Usable camera device found: /dev/video$i"
-                CAMERA_FOUND=1
-                USABLE_CAMERA="/dev/video$i"
-                break
-            fi
-        else
-            echo "Camera device found: /dev/video$i"
-            CAMERA_FOUND=1
-            USABLE_CAMERA="/dev/video$i"
-            break
-        fi
-    fi
-done
-
-if [ $CAMERA_FOUND -eq 0 ]; then
-    echo "WARNING: No camera devices accessible!"
-    echo "Please run: sudo snap connect linux-photo-booth:camera"
-    echo "Available devices: $(ls -1 /dev/video* 2>/dev/null | head -5 | tr '\n' ' ')"
+# Camera source detection. The Raspberry Pi CSI camera (imx219) exposes many
+# /dev/video* ISP/CFE subdevice nodes that CANNOT be captured with v4l2src, so
+# only USB (UVC) nodes are treated as v4l2; the CSI path uses libcamera.
+# The Dart pipeline reads BOOTH_CAMERA_KIND / DEFAULT_CAMERA_DEVICE.
+CAMERA_DEVICE=""
+CAMERA_KIND=""
+if [ -n "$BOOTH_CAMERA_KIND" ]; then
+    # Explicit override (e.g. systemd Environment=BOOTH_CAMERA_KIND=libcamera).
+    CAMERA_KIND="$BOOTH_CAMERA_KIND"
+    CAMERA_DEVICE="${DEFAULT_CAMERA_DEVICE:-}"
 else
-    echo "Using camera: $USABLE_CAMERA"
-    export DEFAULT_CAMERA_DEVICE="$USABLE_CAMERA"
+    # Prefer a genuine USB (UVC) v4l2 camera; skip CSI ISP/CFE subdevice nodes.
+    for n in $(ls /sys/class/video4linux/ 2>/dev/null | grep '^video'); do
+        dev="/dev/$n"
+        [ -r "$dev" ] || continue
+        devpath="$(readlink -f "/sys/class/video4linux/$n/device" 2>/dev/null)"
+        case "$devpath" in
+            *usb*) CAMERA_DEVICE="$dev"; CAMERA_KIND="v4l2"; break ;;
+        esac
+    done
+    # No USB camera: use libcamera for the Raspberry Pi CSI (imx219 etc.).
+    if [ -z "$CAMERA_DEVICE" ] && ls /dev/media* >/dev/null 2>&1; then
+        CAMERA_KIND="libcamera"
+    fi
 fi
 
-# Debug info (only when DEBUG=1)
-if [ "$DEBUG" = "1" ]; then
-    echo "=== Linux Photo Booth Debug Info ==="
-    echo "Architecture: $ARCH"
-    echo "Arch Triplet: $ARCH_TRIPLET"
-    echo "Session Type: $XDG_SESSION_TYPE"
-    echo "GDK Backend: $GDK_BACKEND"
-    echo "Display: $DISPLAY"
-    echo "Wayland: $WAYLAND_DISPLAY"
-    echo "Runtime Dir: $XDG_RUNTIME_DIR"
-    echo "GST Plugin Path: $GST_PLUGIN_PATH"
-    echo "GST Plugin Scanner: $GST_PLUGIN_SCANNER"
-    echo "GST Registry: $GST_REGISTRY"
-    echo "LD Library Path: ${LD_LIBRARY_PATH:0:200}..."
-    echo "=================================="
-fi
+[ -n "$CAMERA_DEVICE" ] && export DEFAULT_CAMERA_DEVICE="$CAMERA_DEVICE"
+[ -n "$CAMERA_KIND" ] && export BOOTH_CAMERA_KIND="$CAMERA_KIND"
+echo "Camera: kind=${CAMERA_KIND:-none} device=${CAMERA_DEVICE:-none}"
 
-# Resolve Flutter binary path
+# Resolve the Flutter binary.
 FLUTTER_BIN=""
 for candidate in "$SNAP/bin/linux_photo_booth" "$SNAP/linux_photo_booth"; do
-    if [ -x "$candidate" ]; then
-        FLUTTER_BIN="$candidate"
-        break
-    fi
+    if [ -x "$candidate" ]; then FLUTTER_BIN="$candidate"; break; fi
 done
-
 if [ -z "$FLUTTER_BIN" ]; then
-    echo "ERROR: Flutter binary not found!"
-    echo "Searched: $SNAP/bin/linux_photo_booth, $SNAP/linux_photo_booth"
-    ls -la "$SNAP/bin/" 2>/dev/null
+    echo "ERROR: Flutter binary not found under $SNAP" >&2
     exit 1
 fi
 
-# Launch application
-echo "Starting Linux Photo Booth ($(date))..."
-echo "Binary: $FLUTTER_BIN"
-
-if [ "$DEBUG" = "1" ]; then
-    exec "$FLUTTER_BIN" "$@" 2>&1 | tee "$SNAP_USER_COMMON/logs/app.log"
-else
-    "$FLUTTER_BIN" "$@" 2>"$SNAP_USER_COMMON/logs/error.log" | tee "$SNAP_USER_COMMON/logs/app.log"
-    EXIT_CODE=$?
-
-    if [ $EXIT_CODE -ne 0 ]; then
-        echo "Application exited with code $EXIT_CODE"
-        echo "Check logs: $SNAP_USER_COMMON/logs/"
-        exit $EXIT_CODE
-    fi
+# Print configuration (media/borderless) written by the configure hook.
+if [ -f "$SNAP_DATA/print-config.env" ]; then
+    # shellcheck disable=SC1091
+    . "$SNAP_DATA/print-config.env"
+    export BOOTH_PRINT_MEDIA BOOTH_PRINT_BORDERLESS
 fi
+
+echo "Starting Linux Photo Booth ($(date)) — $FLUTTER_BIN"
+exec "$FLUTTER_BIN" "$@"

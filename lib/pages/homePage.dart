@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:io';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -10,6 +11,22 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedType = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    // Test hook: auto-open the camera page when BOOTH_AUTOSTART_CAMERA=1, so the
+    // camera pipeline can be verified without a touch tap. Off in production.
+    if (Platform.environment['BOOTH_AUTOSTART_CAMERA'] == '1') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted) {
+            Get.toNamed('/take-picture-page', arguments: _selectedType);
+          }
+        });
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
