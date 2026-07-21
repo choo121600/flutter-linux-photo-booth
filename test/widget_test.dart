@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:linux_photo_booth/main.dart';
+import 'package:ubu4cut/main.dart';
 
 void main() {
   testWidgets('App launches and shows home page', (WidgetTester tester) async {

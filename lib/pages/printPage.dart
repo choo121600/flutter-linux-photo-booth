@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -29,6 +28,7 @@ class PrintPage extends StatefulWidget {
 
 class _PrintPageState extends State<PrintPage> {
   ByteData? _combinedImageData;
+  bool _printing = false;
   final ImageController imageController = Get.find();
 
   @override
@@ -97,10 +97,11 @@ class _PrintPageState extends State<PrintPage> {
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: ElevatedButton(
-                  onPressed: () {
-                    _printImage();
-                  },
-                  child: const Text('Print the picture'),
+                  onPressed: (_combinedImageData == null || _printing)
+                      ? null
+                      : _printImage,
+                  child:
+                      Text(_printing ? 'Printing…' : 'Print the picture'),
                 ),
               ),
               Padding(
@@ -122,10 +123,11 @@ class _PrintPageState extends State<PrintPage> {
 
   /// 메모리에서 합성한 PNG를 CUPS `lp`로 직접 인쇄합니다 (로컬 HTTP 서버 없음).
   void _printImage() async {
-    if (_combinedImageData == null) {
-      _showMessage('No image to print');
+    if (_combinedImageData == null || _printing) {
+      if (_combinedImageData == null) _showMessage('No image to print');
       return;
     }
+    setState(() => _printing = true);
 
     File? tempFile;
     try {
@@ -134,7 +136,7 @@ class _PrintPageState extends State<PrintPage> {
       final String baseDir =
           Platform.environment['SNAP_USER_COMMON'] ?? Directory.systemTemp.path;
       tempFile = File(
-          '$baseDir/photo_booth_${DateTime.now().millisecondsSinceEpoch}.png');
+          '$baseDir/ubu4cut_${DateTime.now().millisecondsSinceEpoch}.png');
       await tempFile.writeAsBytes(imageBytes, flush: true);
 
       // CUPS `lp`로 기본 프린터에 인쇄. media/borderless는 스냅 설정(env)에서.
@@ -174,13 +176,19 @@ class _PrintPageState extends State<PrintPage> {
           await tempFile.delete();
         }
       } catch (_) {}
+      if (mounted) setState(() => _printing = false);
     }
   }
 
   /// 사용자에게 메시지를 표시합니다
   void _showMessage(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      // Collapse any queued snackbars first: repeated failed prints used to
+      // stack many snackbar animations and could crash Frame's fragile
+      // compositor.
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
         SnackBar(
           content: Text(message),
           duration: const Duration(seconds: 3),

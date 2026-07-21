@@ -1,144 +1,70 @@
 #!/bin/bash
+# Ubuntu Core kiosk wiring for Ubu4Cut — essential wiring only.
+#
+# Scope: install and connect the runtime substrate (Ubuntu Frame, CUPS, a dye-sub
+# Printer Application), install the booth snap, and enable the kiosk daemon.
+#
+# NOT in scope (removed on purpose): cron monitors, `snap save` backups, ufw,
+# logrotate, and /boot/firmware/config.txt edits. Enabling the CSI camera + full
+# KMS requires a gadget/config.txt change — see ubuntu-core/gadget-camera-kms.md
+# (a stock signed model needs a custom gadget + custom model + re-image).
+set -euo pipefail
 
-# Ubuntu Core + Ubuntu Frame Photo Booth Setup Script
-# This script automates the setup of a photo booth kiosk using Ubuntu Core
+BOOTH_SNAP="ubu4cut"
+KIOSK_APP="${BOOTH_SNAP}.ubu4cut-kiosk"
+PRINTER_APP_SNAP="${PRINTER_APP_SNAP:-gutenprint-printer-app}"
 
-set -e
+echo "== Ubu4Cut :: Ubuntu Core kiosk setup =="
 
-echo "Setting up Ubuntu Core Photo Booth Kiosk..."
-
-# Check if running on Ubuntu Core
-if ! snap list | grep -q "ubuntu-core"; then
-    echo "ERROR: This script is designed for Ubuntu Core"
-    echo "Please install Ubuntu Core first: https://ubuntu.com/core/docs/getting-started"
-    exit 1
+if ! snap list 2>/dev/null | grep -q '^core24'; then
+    echo "WARNING: this does not look like Ubuntu Core; continuing anyway." >&2
 fi
 
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
-    echo "ERROR: This script must be run as root (use sudo)"
-    exit 1
-fi
-
-echo "Installing Ubuntu Frame..."
+echo "-- Installing Ubuntu Frame (Wayland compositor) --"
 snap install ubuntu-frame
+snap set ubuntu-frame daemon=true            # valid Frame key (NOT daemon.command)
 
-echo "Configuring Ubuntu Frame..."
-snap set ubuntu-frame daemon.enable=true
-snap set ubuntu-frame daemon.restart-condition=always
-snap set ubuntu-frame daemon.restart-delay=10s
-
-echo "Installing CUPS for printing..."
+echo "-- Installing CUPS + Printer Application (dye-sub) --"
 snap install cups
-snap set cups interface.enable=true
+snap install "$PRINTER_APP_SNAP"             # exposes the USB dye-sub as driverless IPP
 
-echo "Connecting CUPS interfaces..."
-snap connect cups:usb-control
-snap connect cups:network-control
-
-echo "Installing display utilities..."
-snap install xinput-calibrator
-
-echo "Creating configuration directory..."
-mkdir -p /home/ubuntu/.photo-booth
-chown ubuntu:ubuntu /home/ubuntu/.photo-booth
-
-echo "Creating monitoring script..."
-cat > /usr/local/bin/photo-booth-monitor.sh << 'EOF'
-#!/bin/bash
-
-LOG_FILE="/home/ubuntu/.photo-booth/kiosk.log"
-APP_PID=$(pgrep -f "linux-photo-booth")
-
-if [ -z "$APP_PID" ]; then
-    echo "$(date): Photo booth app not running, restarting..." >> "$LOG_FILE"
-    snap restart ubuntu-frame
+echo "-- Installing the photo booth snap --"
+# Store: `snap install ubu4cut`.
+# Local sideload during development:
+#   sudo snap install --dangerous ${BOOTH_SNAP}_*.snap
+if ! snap list "$BOOTH_SNAP" >/dev/null 2>&1; then
+    if ls "${BOOTH_SNAP}"_*.snap >/dev/null 2>&1; then
+        snap install --dangerous "$(ls -1 ${BOOTH_SNAP}_*.snap | head -1)"
+    else
+        echo "NOTE: ${BOOTH_SNAP} not installed and no local .snap found; install it, then re-run." >&2
+    fi
 fi
 
-# Check disk space
-DISK_USAGE=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
-if [ "$DISK_USAGE" -gt 90 ]; then
-    echo "$(date): Disk usage high: ${DISK_USAGE}%" >> "$LOG_FILE"
-    # Clean up old photos
-    find /home/ubuntu/Pictures -name "*.png" -mtime +7 -delete 2>/dev/null || true
-fi
+echo "-- Connecting interfaces (sideload does not auto-connect) --"
+# `cups` auto-connects from the store; connect explicitly for --dangerous installs.
+for slotpair in \
+    "${BOOTH_SNAP}:camera" \
+    "${BOOTH_SNAP}:cups cups:cups" \
+    "${KIOSK_APP%.*}:wayland"; do
+    snap connect $slotpair 2>/dev/null || echo "  (skip/verify: snap connect $slotpair)"
+done
+
+echo "-- Enabling the kiosk daemon (install-mode:disable requires explicit enable) --"
+snap start --enable "$KIOSK_APP" || echo "  (verify kiosk app name: $KIOSK_APP)"
+
+cat <<EOF
+
+== Setup complete ==
+Next / verify:
+  snap connections ${BOOTH_SNAP}          # confirm camera/cups/wayland are connected
+  snap services ${BOOTH_SNAP}             # kiosk daemon should be enabled/active
+  snap logs ${KIOSK_APP} -n 50            # boot/render logs
+  # Set the default printer once the dye-sub is detected by the Printer Application:
+  #   lpstat -p            (via the cups snap)
+  #   lpadmin -d <printer> # or the cups web UI at http://localhost:631
+  # Configure photo media (defaults 4x6 / borderless):
+  #   snap set ${BOOTH_SNAP} print.media=4x6 print.borderless=true
+
+CSI camera + full KMS are NOT enabled by this script (gadget-owned config.txt).
+See ubuntu-core/gadget-camera-kms.md.
 EOF
-
-chmod +x /usr/local/bin/photo-booth-monitor.sh
-
-echo "Setting up monitoring cron job..."
-cat > /etc/cron.d/photo-booth-monitor << 'EOF'
-*/5 * * * * root /usr/local/bin/photo-booth-monitor.sh
-EOF
-
-echo "Creating backup script..."
-cat > /usr/local/bin/photo-booth-backup.sh << 'EOF'
-#!/bin/bash
-
-BACKUP_DIR="/home/ubuntu/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-mkdir -p "$BACKUP_DIR"
-snap save photo-booth-config-$DATE
-
-# Keep only last 7 backups
-snap saved | grep photo-booth-config | tail -n +8 | awk '{print $1}' | xargs -r snap forget
-EOF
-
-chmod +x /usr/local/bin/photo-booth-backup.sh
-
-echo "Configuring Raspberry Pi 5 hardware optimizations..."
-if [ -f /boot/firmware/config.txt ]; then
-    # Avoid duplicate entries
-    grep -q "disable_overscan" /boot/firmware/config.txt || echo "disable_overscan=1" >> /boot/firmware/config.txt
-    grep -q "dtoverlay=vc4-kms-v3d" /boot/firmware/config.txt || echo "dtoverlay=vc4-kms-v3d" >> /boot/firmware/config.txt
-    grep -q "max_framebuffers" /boot/firmware/config.txt || echo "max_framebuffers=2" >> /boot/firmware/config.txt
-    grep -q "camera_auto_detect" /boot/firmware/config.txt || echo "camera_auto_detect=1" >> /boot/firmware/config.txt
-    echo "Raspberry Pi 5 hardware optimization applied"
-else
-    echo "WARNING: /boot/firmware/config.txt not found - skipping hardware optimization"
-fi
-
-echo "Setting up firewall..."
-ufw --force enable
-ufw allow ssh
-ufw allow 631  # CUPS web interface
-
-echo "Setting up log rotation..."
-cat > /etc/logrotate.d/photo-booth << 'EOF'
-/home/ubuntu/.photo-booth/*.log {
-    daily
-    missingok
-    rotate 7
-    compress
-    notifempty
-    create 644 ubuntu ubuntu
-}
-EOF
-
-echo "Ubuntu Core Photo Booth Kiosk setup complete!"
-echo ""
-echo "Next steps:"
-echo "1. Build and install the snap package:"
-echo "   ./build-snap.sh"
-echo "   scp linux-photo-booth_*.snap ubuntu@<raspberry-pi-ip>:~/"
-echo "   sudo snap install --dangerous linux-photo-booth_*.snap"
-echo ""
-echo "2. Connect snap interfaces (desktop, wayland, x11, opengl are auto-connected via gnome extension):"
-echo "   sudo snap connect linux-photo-booth:camera"
-echo "   sudo snap connect linux-photo-booth:cups-control"
-echo "   sudo snap connect linux-photo-booth:raw-usb"
-echo ""
-echo "3. Configure Ubuntu Frame:"
-echo "   sudo snap set ubuntu-frame daemon.command='linux-photo-booth'"
-echo "   sudo snap restart ubuntu-frame"
-echo ""
-echo "4. Test the setup:"
-echo "   sudo snap services ubuntu-frame"
-echo "   sudo snap logs ubuntu-frame"
-echo ""
-echo "Troubleshooting:"
-echo "- Check logs: sudo snap logs ubuntu-frame"
-echo "- Check services: sudo snap services"
-echo "- Restart Frame: sudo snap restart ubuntu-frame"
-echo "- Test camera: v4l2-ctl --list-devices" 

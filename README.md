@@ -1,458 +1,267 @@
-# Linux Photo Booth
+# Ubu4Cut
 
-A professional photo booth application designed for Ubuntu Core and Ubuntu Frame. Perfect for events, parties, and commercial photo booth installations.
+**Ubu4Cut** is an Ubuntu-based four-cut (네컷) photo booth for touch kiosks. It ships as a
+single Flutter/GTK **snap** that autostarts under **Ubuntu Frame** on **Ubuntu Core**
+(Raspberry Pi 5) and also launches manually on **Ubuntu Desktop**. Point-and-shoot capture,
+frame overlays, and direct dye-sub printing — built for events, parties, and permanent booth
+installations.
 
-## Overview
-
-Linux Photo Booth is a complete photo booth solution that runs seamlessly on Ubuntu Core with Ubuntu Frame, providing a touch-optimized interface for capturing, editing, and printing photos. It's designed to work out-of-the-box on Raspberry Pi and other Ubuntu Core devices.
+> **Status:** `grade: devel`, `confinement: devmode`.
+> The Raspberry Pi 5 CSI camera needs libcamera to open `/dev/media*`, which snapd's strict
+> `camera` interface does not grant (it only tags `/dev/video*`). Until a gadget
+> `custom-device` slot is in place, the kiosk runs in devmode. See
+> [`ubuntu-core/gadget-camera-kms.md`](ubuntu-core/gadget-camera-kms.md).
 
 ## Features
 
-- **Real-time camera capture** using GStreamer
-- **Multiple photo layouts** (1x1, 2x2) with customizable frames
-- **Frame overlay system** with professional templates
-- **Direct printing** via CUPS with automatic printer detection
-- **Countdown timer** with visual feedback
-- **Touch-optimized interface** for kiosk environments
-- **Automatic kiosk mode** with Ubuntu Frame integration
-- **Background themes** and customization options
-- **Remote management** capabilities
-- **Secure sandboxed** environment with Snap confinement
+- **Two capture layouts** — 1-cut (`1장`) and 4-cut (`4장`), each with a live countdown.
+- **Real-time preview** via GStreamer — USB UVC (`v4l2src`) and Raspberry Pi CSI
+  (`libcamerasrc`, PiSP) are auto-detected at launch.
+- **Frame overlays** composited onto the captured shots before printing.
+- **Direct printing** through the CUPS `lp` client — no bundled web/print server. Media size
+  and borderless are snap-configurable; defaults suit 4×6 dye-sub photo printers.
+- **Touch-first kiosk UI** — large finger targets, instant page transitions, and a short
+  post-transition *tap guard* that swallows carried-over double-taps.
+- **Runtime portrait/landscape toggle** — rotates the widget tree (not the Frame output,
+  which would break touch mapping) so a physically rotated monitor still maps touches
+  correctly.
+- **Single snap, two entry points** — a desktop launcher and an Ubuntu Core kiosk daemon
+  share one Flutter binary.
+- **Kiosk autostart** under Ubuntu Frame on Ubuntu Core, with automatic restart.
 
-## Ubuntu Core + Ubuntu Frame
+## Architecture at a glance
 
-This application is specifically designed for Ubuntu Core, which provides:
+| Layer | Component | Notes |
+|---|---|---|
+| UI | Flutter + GetX | Routes: `/` (home) → `/take-picture-page` → `/print-page`. `lib/` |
+| Camera | `flutter_gstreamer_player` + GStreamer | Pipeline selected at runtime by `run-booth`. |
+| Pi 5 camera stack | libcamera (RPi fork, PiSP/rp1) | Built **from source** in the snap; Ubuntu 24.04 only ships libcamera 0.2.0 (Pi 4/VC4). |
+| Printing | `lp` (cups-client) → cups snap → Printer Application | e.g. `gutenprint-printer-app` for PNG→raster on dye-sub. |
+| Packaging | One snap `ubu4cut`, `gnome` extension | Apps: `ubu4cut` (desktop) + `ubu4cut-kiosk` (daemon). |
+| Compositor | Ubuntu Frame (Wayland) | On Ubuntu Core; the kiosk waits for its socket before launching. |
 
-- **Security**: Sandboxed applications with strict confinement
-- **Reliability**: Automatic updates and rollback capabilities
-- **Simplicity**: One-command installation and management
-- **Performance**: Optimized for IoT and edge computing devices
+### The two app entries
 
-Ubuntu Frame handles the display server and kiosk management automatically.
+Both share one Flutter binary via `bin/run-booth`:
 
-## Quick Start
+- **`ubu4cut`** — Ubuntu Desktop launcher (manual, from the app menu). `Exec=ubu4cut`.
+- **`ubu4cut-kiosk`** — Ubuntu Core kiosk daemon (`daemon: simple`,
+  `install-mode: disable`, `restart-condition: always`). It runs `wayland-launch` first to
+  wait for the Ubuntu Frame Wayland socket, and is enabled explicitly by
+  `setup-ubuntu-core.sh` (so it doesn't crash-loop on a desktop with no seat at boot).
 
-### 1. Install Ubuntu Core
+### Snap interfaces
 
-1. **Download Ubuntu Core image**
+The `gnome` extension (gnome-46-2404) provides the GTK/GLib/pixbuf/fontconfig/xkb/theme
+runtime plus Mesa and Wayland. The app additionally plugs:
+
+`camera`, `cups`, `opengl`, `wayland`, `desktop`, `desktop-legacy`, `gsettings`,
+`hardware-observe` (the kiosk daemon uses `camera`, `cups`, `opengl`, `wayland`,
+`hardware-observe`).
+
+Wayland-only — there is **no X11 path**. `cups` replaces the old `cups-control`, and
+`raw-usb` is no longer used.
+
+## Quick start — Ubuntu Core kiosk (Raspberry Pi 5)
+
+Ubuntu Core image choice on the Pi 5 is a real trade-off (measured on-device):
+
+| | Full KMS (display) | Onboard Wi-Fi |
+|---|---|---|
+| **Core 24** (kernel 6.8) | ❌ pinned to legacy FB | ✅ |
+| **Core 26** (kernel 7.0) | ✅ | ❌ brcmfmac scan regression |
+
+Ubuntu Frame (Wayland) needs full KMS, so the Pi 5 booth targets a **custom Core 26 image**
+that adds a local-login user — you log in on the Pi's own touch monitor and repair Wi-Fi from
+a shell, no console-conf needed. The whole flow is scripted under `ubuntu-core/`:
+
+1. **Build a signed custom image** — [`ubuntu-core/flash-and-verify.md`](ubuntu-core/flash-and-verify.md)
+   (`sign-model.sh` → `build-image.sh` → `make-auto-import.sh`).
+2. **Flash a spare SD**, boot with the `auto-import.assert` USB inserted, log in locally, and
+   bring up networking.
+3. **Install the booth + runtime and enable the kiosk:**
    ```bash
-   wget https://cdimage.ubuntu.com/ubuntu-core/24/stable/current/ubuntu-core-24-arm64+raspi.img.xz
-   xz -d ubuntu-core-24-arm64+raspi.img.xz
+   # Store install (when published):
+   sudo snap install ubu4cut
+   # Or local sideload:
+   sudo snap install --dangerous ubu4cut_*.snap
+
+   # Install Ubuntu Frame + CUPS + a dye-sub Printer Application, connect interfaces,
+   # and enable the kiosk daemon (sideloads don't auto-connect):
+   sudo ubuntu-core/setup-ubuntu-core.sh
    ```
+4. **Enable the CSI camera + full KMS** (gadget-owned `config.txt`) —
+   [`ubuntu-core/gadget-camera-kms.md`](ubuntu-core/gadget-camera-kms.md).
+5. **Verify on real hardware** — [`ubuntu-core/rpi5-acceptance-checklist.md`](ubuntu-core/rpi5-acceptance-checklist.md).
 
-2. **Flash to SD card**
-   ```bash
-   sudo dd if=ubuntu-core-24-arm64+raspi.img of=/dev/sdb bs=4M status=progress
-   ```
+`setup-ubuntu-core.sh` does the essential wiring only. It deliberately does **not** add cron
+monitors, `snap save` backups, `ufw`, or `logrotate`.
 
-3. **Boot and configure**
-   - Insert SD card into Raspberry Pi
-   - Connect to WiFi during initial setup
-   - Create Ubuntu One account if needed
-   - Note the device IP address
-
-### 2. Install Ubuntu Frame
+Verify the wiring:
 
 ```bash
-# SSH into your Ubuntu Core device
-ssh ubuntu@<device-ip>
-
-# Install Ubuntu Frame
-sudo snap install ubuntu-frame
-
-# Configure Frame for kiosk mode
-sudo snap set ubuntu-frame daemon.enable=true
-sudo snap set ubuntu-frame daemon.restart-condition=always
+snap connections ubu4cut          # expect camera, cups, wayland (no cups-control)
+snap services ubu4cut             # ubu4cut-kiosk should be enabled/active
+snap logs ubu4cut.ubu4cut-kiosk -n 50
 ```
 
-### 3. Install Photo Booth
+## Run on Ubuntu Desktop
+
+Install the snap and launch **Ubu4Cut** from the app menu (or run `ubu4cut`). Same binary; the
+kiosk daemon stays disabled on desktop.
+
+## Printing
+
+Printing goes straight from the app to CUPS through the `lp` client — there is no bundled print
+server.
+
+- Install CUPS and a **driverless-IPP Printer Application** for the dye-sub, e.g.
+  `gutenprint-printer-app` (`setup-ubuntu-core.sh` installs both).
+- Set the default printer once it is detected:
+  ```bash
+  lpstat -p                  # via the cups snap
+  sudo lpadmin -d <printer>  # or the CUPS web UI at http://localhost:631
+  ```
+- Configure photo media (defaults: **4×6 borderless**):
+  ```bash
+  snap set ubu4cut print.media=4x6 print.borderless=true
+  ```
+  The `configure` hook writes these to `$SNAP_DATA/print-config.env`; `run-booth` exports them
+  as `BOOTH_PRINT_MEDIA` / `BOOTH_PRINT_BORDERLESS`; the print page passes them to `lp`.
+
+## Camera
+
+`run-booth` picks the source at launch and exports `BOOTH_CAMERA_KIND` /
+`DEFAULT_CAMERA_DEVICE`, which the Dart pipeline reads:
+
+- **USB UVC** → `v4l2src device=/dev/videoN` (a genuine USB video node).
+- **Raspberry Pi CSI** → `libcamerasrc` capturing the full-FOV binned mode (NV12 1640×1232),
+  scaled to 640×480. The narrow 640×480 sensor mode is a crop and looks zoomed in, so it is
+  avoided.
+
+Because Ubuntu 24.04's stock libcamera (0.2.0) is Pi 4 (VC4) only, the snap builds the
+Raspberry Pi libcamera fork (PiSP/rp1) from source, including the `libcamerasrc` GStreamer
+element and the IPA/tuning data. Force a source with `BOOTH_CAMERA_KIND=libcamera` (or
+`v4l2` together with `DEFAULT_CAMERA_DEVICE`).
+
+## Configuration (environment)
+
+Runtime-tunable at startup, no rebuild required:
+
+| Variable | Default | Effect |
+|---|---|---|
+| `BOOTH_PORTRAIT` | `0` | `1` starts the UI in portrait. |
+| `BOOTH_PORTRAIT_TURNS` | `3` | Clockwise quarter-turns for portrait (`1` or `3`). |
+| `BOOTH_TAP_GUARD_MS` | `300` | Post-transition input guard; `0` disables it. |
+| `BOOTH_PREVIEW_WIDTH` / `BOOTH_PREVIEW_HEIGHT` | `525` / `700` | Preview & capture box size. |
+| `BOOTH_CAMERA_KIND` / `DEFAULT_CAMERA_DEVICE` | auto | Override camera detection. |
+| `BOOTH_PRINT_MEDIA` / `BOOTH_PRINT_BORDERLESS` | `4x6` / `true` | Set via `snap set … print.*`. |
+| `BOOTH_AUTOSTART_CAMERA` | unset | Test hook: auto-open the camera page. Off in production. |
+
+Only `print.media` / `print.borderless` are exposed as snap config; the rest are process
+environment variables (set them in `run-booth` or a systemd drop-in for the kiosk daemon).
+
+## Development
+
+Prerequisites: Flutter (Dart SDK ≥ 3.3). Snap builds need a Linux host with `snapcraft`
+(there is none on macOS).
 
 ```bash
-# Install from Snap Store (when published)
-sudo snap install linux-photo-booth
+flutter pub get
 
-# Or install locally built snap
-sudo snap install --dangerous linux-photo-booth_*.snap
+# Desktop dev (UI/logic):
+flutter run -d linux        # or -d macos for UI work
 
-# Connect required interfaces (desktop, wayland, x11, opengl are auto-connected via gnome extension)
-sudo snap connect linux-photo-booth:camera
-sudo snap connect linux-photo-booth:cups-control
-sudo snap connect linux-photo-booth:raw-usb
+# Snap build on a Linux host:
+./build-snap.sh             # snapcraft --use-lxd (local testing)
+snapcraft --destructive-mode # arm64, on an arm64 host
 ```
 
-### 4. Configure Ubuntu Frame
+To build **arm64 without a local snapcraft** (e.g. from macOS), use **Launchpad** or a
+privileged systemd Docker container — both, plus the no-hardware gate
+(`snapcraft lint`, `review-tools.snap-review`, `frame-it`), are documented in
+[`ubuntu-core/build-and-verify.md`](ubuntu-core/build-and-verify.md).
 
-```bash
-# Set photo booth as the default application
-sudo snap set ubuntu-frame daemon.command="linux-photo-booth"
+Notes:
+- `pubspec.yaml` overrides `win32: any` to drop it from Linux builds.
+- `packages/flutter_gstreamer_player` is vendored (a GStreamer-backed video widget).
 
-# Restart Frame to apply changes
-sudo snap restart ubuntu-frame
-```
-
-## Development Setup
-
-### Prerequisites
-
-```bash
-# Install snapcraft
-sudo snap install snapcraft --classic
-
-# Install Flutter
-sudo snap install flutter --classic
-
-# Install build dependencies
-sudo apt update
-sudo apt install -y \
-  build-essential \
-  git \
-  curl \
-  wget
-```
-
-### Build Snap Package
-
-```bash
-# Clone repository
-git clone https://github.com/your-username/flutter-linux-photo-booth.git
-cd flutter-linux-photo-booth
-
-# Build snap package (for local testing)
-./build-snap.sh
-
-# For Raspberry Pi (arm64) build, use:
-snapcraft --destructive-mode
-```
-
-### Test Locally
-
-```bash
-# Install snap in development mode
-sudo snap install --devmode linux-photo-booth_*.snap
-
-# Connect interfaces (desktop, wayland, x11, opengl are auto-connected via gnome extension)
-sudo snap connect linux-photo-booth:camera
-sudo snap connect linux-photo-booth:cups-control
-
-# Test the application
-linux-photo-booth
-```
-
-### Advanced Setup
-
-For advanced Ubuntu Core configuration, monitoring, and troubleshooting, see the detailed guide in [ubuntu-core/install-ubuntu-core.md](ubuntu-core/install-ubuntu-core.md).
-
-For automated setup of Ubuntu Core with all necessary services and monitoring, use the setup script:
-
-```bash
-# Run the automated setup script
-sudo ./ubuntu-core/setup-ubuntu-core.sh
-```
-
-## Project Structure
+## Project structure
 
 ```
-flutter-linux-photo-booth/
+ubu4cut/
 ├── lib/
-│   ├── controllers/          # State management (GetX)
-│   ├── helpers/             # Utility functions
-│   ├── pages/              # UI pages
-│   └── main.dart           # Application entry point
+│   ├── main.dart                 # App entry: routes, theme, whole-UI rotation
+│   ├── controllers/              # GetX controllers (image buffer, orientation)
+│   ├── pages/                    # home / take-picture / print
+│   ├── widgets/                  # tapGuard (post-transition input guard)
+│   └── helpers/                  # frame-overlay compositing
 ├── assets/
-│   ├── images/             # Frame templates and test images
-│   └── backgrounds/        # UI background images
+│   ├── images/                   # frame templates + test images
+│   └── backgrounds/              # UI backgrounds
 ├── snap/
-│   ├── snapcraft.yaml      # Snap package configuration
-│   ├── gui/               # Snap Store icon (linux-photo-booth.png)
+│   ├── snapcraft.yaml            # snap (gnome ext, libcamera-from-source, dual apps)
+│   ├── hooks/configure           # print.media / print.borderless -> env
 │   └── local/
-│       ├── run-booth       # Launcher script
-│       └── desktop/        # Desktop integration files
-├── ubuntu-core/
-│   ├── setup-ubuntu-core.sh # Ubuntu Core setup script
-│   └── install-ubuntu-core.md # Detailed installation guide
-├── server.py              # Flask print server
-├── requirement.txt        # Python dependencies
-└── build-snap.sh         # Snap build script
-```
-
-## Configuration
-
-### Ubuntu Frame Configuration
-
-Ubuntu Frame automatically handles kiosk mode. To customize the behavior:
-
-```bash
-# Configure Frame settings
-sudo snap set ubuntu-frame daemon.restart-condition=always
-sudo snap set ubuntu-frame daemon.restart-delay=10s
-
-# Set display environment
-sudo snap set ubuntu-frame daemon.environment="DISPLAY=:0 WAYLAND_DISPLAY=wayland-0"
-```
-
-### Camera Settings
-
-The application uses `/dev/video0` by default. To use a different camera:
-
-1. Edit `lib/pages/takePicturePage.dart`
-2. Modify the GStreamer pipeline in the `GstPlayer` widget
-3. Change `device=/dev/video0` to your camera device
-
-### Printer Configuration
-
-The Flask server automatically detects the default printer. To configure manually:
-
-1. Edit `server.py`
-2. Modify the `get_default_printer()` function
-3. Or set a specific printer name
-
-## Printer Setup
-
-### CUPS Installation
-
-```bash
-# Install CUPS snap
-sudo snap install cups
-
-# Enable CUPS web interface
-sudo snap set cups interface.enable=true
-
-# Connect USB printer interface
-sudo snap connect cups:usb-control
-```
-
-### Printer Configuration
-
-```bash
-# List available printers
-lpstat -p
-
-# Set default printer
-lpoptions -d <printer-name>
-
-# Test print
-echo "Test" | lp
-```
-
-### Web Interface
-
-Access CUPS web interface at `http://<device-ip>:631` to configure printers.
-
-## Monitoring and Management
-
-### Logs
-
-```bash
-# Application logs
-sudo snap logs linux-photo-booth
-
-# Ubuntu Frame logs
-sudo snap logs ubuntu-frame
-
-# System logs
-journalctl -u snap.ubuntu-frame.ubuntu-frame
-```
-
-### Status Check
-
-```bash
-# Check snap services
-snap services
-
-# Check snap connections
-snap connections linux-photo-booth
-
-# Check system resources
-htop
-df -h
-```
-
-### Remote Management
-
-```bash
-# SSH into device
-ssh ubuntu@<device-ip>
-
-# Restart application
-sudo snap restart linux-photo-booth
-
-# Update application
-sudo snap refresh linux-photo-booth
-
-# Check for updates
-sudo snap refresh --list
-```
-
-## Security
-
-### Snap Confinement
-
-The application runs in strict confinement, providing:
-
-- **Isolation**: Applications cannot access each other's data
-- **Permissions**: Explicit permission grants for hardware access
-- **Updates**: Automatic security updates
-- **Rollback**: Automatic rollback on failures
-
-### Interface Connections
-
-```bash
-# Required interfaces (desktop, wayland, x11, opengl are auto-connected via gnome extension)
-sudo snap connect linux-photo-booth:camera      # Camera access (manual connect required)
-sudo snap connect linux-photo-booth:cups-control # Printer access
-sudo snap connect linux-photo-booth:raw-usb     # USB device access
+│       ├── run-booth             # launcher: camera detect, GStreamer + print env
+│       ├── wayland-launch        # kiosk: wait for Frame's Wayland socket
+│       └── desktop/ubu4cut.desktop
+├── ubuntu-core/                  # Ubuntu Core / RPi 5 imaging + kiosk wiring
+│   ├── setup-ubuntu-core.sh      # install Frame/CUPS/Printer App, connect, enable kiosk
+│   ├── install-ubuntu-core.md    # advanced install & operations guide
+│   ├── build-and-verify.md       # snap build (Launchpad/Docker) + no-hardware gate
+│   ├── gadget-camera-kms.md      # CSI camera + full KMS via custom gadget/model
+│   ├── flash-and-verify.md       # custom Core 26 image + local-login (Wi-Fi rescue)
+│   ├── rpi5-acceptance-checklist.md
+│   ├── sign-model.sh / build-image.sh / make-auto-import.sh
+│   ├── model/                    # ubu4cut-core-24|26-pi-arm64 model assertions
+│   ├── gadget/                   # config.txt (KMS + camera) + camera-csi slot
+│   └── system-user.json          # local-login template (Core 26 path)
+├── packages/flutter_gstreamer_player/   # vendored GStreamer video widget
+├── linux/  macos/  test/         # Flutter platform runners + tests
+└── build-snap.sh
 ```
 
 ## Troubleshooting
 
-### Common Issues
+- **Black preview / test pattern instead of camera** — check `snap logs ubu4cut` for
+  `Camera: kind=…`. USB nodes must be genuine UVC; the Pi CSI needs the gadget `config.txt`
+  (`camera_auto_detect`) so `rp1-cfe` appears (`ls /dev/media*`,
+  `cat /sys/class/video4linux/*/name`). Reconnect with `sudo snap connect ubu4cut:camera`.
+- **Nothing renders under Ubuntu Frame** — full KMS is required (`ls /dev/dri/card0`). On the
+  Pi 5 that means Core 26 (or a custom Core 24 gadget). Check `snap services ubu4cut` and
+  `snap logs ubu4cut.ubu4cut-kiosk`.
+- **Printing fails** — `lpstat -p` (is the printer present?), default set (`lpadmin -d`),
+  and a Printer Application installed for PNG→raster. Reconfigure media with
+  `snap set ubu4cut print.media=…`.
+- **Interface check** — `snap connections ubu4cut` should show `camera`, `cups`, `wayland`
+  (and no `cups-control`).
 
-#### Camera Not Working
-```bash
-# Check camera permissions
-snap connections linux-photo-booth
+## Documentation map
 
-# Reconnect camera interface
-sudo snap disconnect linux-photo-booth:camera
-sudo snap connect linux-photo-booth:camera
-
-# Test camera
-v4l2-ctl --list-devices
-```
-
-#### Display Issues
-```bash
-# Check Frame service
-sudo snap services ubuntu-frame
-
-# Restart Frame
-sudo snap restart ubuntu-frame
-
-# Check display environment
-echo $DISPLAY
-echo $WAYLAND_DISPLAY
-```
-
-#### Printer Issues
-```bash
-# Check CUPS service
-sudo snap services cups
-
-# Check printer connections
-snap connections cups
-
-# Test printer
-lpstat -p
-echo "Test" | lp
-```
-
-### Debug Commands
-
-```bash
-# System information
-uname -a
-snap version
-
-# Hardware information
-lsusb
-lspci
-
-# Network information
-ip addr show
-ping -c 3 8.8.8.8
-```
-
-## Performance Optimization
-
-### Memory Optimization
-
-```bash
-# Monitor memory usage
-free -h
-
-# Check snap memory usage
-snap list --all
-```
-
-### Storage Optimization
-
-```bash
-# Check disk usage
-df -h
-
-# Clean old snap versions
-snap set system refresh.retain=2
-```
-
-## Updates and Maintenance
-
-### Automatic Updates
-
-Ubuntu Core automatically updates snaps in the background.
-
-### Manual Updates
-
-```bash
-# Check for updates
-sudo snap refresh --list
-
-# Update specific snap
-sudo snap refresh linux-photo-booth
-
-# Update all snaps
-sudo snap refresh
-```
-
-### Backup and Restore
-
-```bash
-# Create backup
-sudo snap save photo-booth-backup
-
-# List backups
-sudo snap saved
-
-# Restore from backup
-sudo snap restore <backup-id>
-```
+| Topic | File |
+|---|---|
+| Snap build + no-hardware gate | [`ubuntu-core/build-and-verify.md`](ubuntu-core/build-and-verify.md) |
+| Custom Core 26 image + Wi-Fi rescue | [`ubuntu-core/flash-and-verify.md`](ubuntu-core/flash-and-verify.md) |
+| CSI camera + full KMS (gadget/model) | [`ubuntu-core/gadget-camera-kms.md`](ubuntu-core/gadget-camera-kms.md) |
+| On-device acceptance | [`ubuntu-core/rpi5-acceptance-checklist.md`](ubuntu-core/rpi5-acceptance-checklist.md) |
+| Advanced install & operations | [`ubuntu-core/install-ubuntu-core.md`](ubuntu-core/install-ubuntu-core.md) |
+| Kiosk wiring script | [`ubuntu-core/setup-ubuntu-core.sh`](ubuntu-core/setup-ubuntu-core.sh) |
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow Flutter best practices
-- Add tests for new features
-- Update documentation for API changes
-- Ensure snap confinement compatibility
+1. Fork and branch (`git checkout -b feature/thing`).
+2. Follow Flutter conventions; keep snap confinement in mind.
+3. Add tests for new behavior and update the docs (including `ubuntu-core/`).
+4. Open a PR.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-### Documentation
-- [Ubuntu Core Documentation](https://ubuntu.com/core/docs)
-- [Ubuntu Frame Documentation](https://snapcraft.io/ubuntu-frame)
-- [Snapcraft Documentation](https://snapcraft.io/docs)
-
-### Community
-- [Ubuntu Forums](https://ubuntuforums.org/)
-- [Snapcraft Community](https://forum.snapcraft.io/)
-
-### Issues
-- [GitHub Issues](https://github.com/your-username/flutter-linux-photo-booth/issues)
+MIT — see [LICENSE](LICENSE).
 
 ## Acknowledgments
 
-- Ubuntu Core team for the excellent IoT platform
-- Flutter team for the amazing UI framework
-- GStreamer team for multimedia capabilities
-- CUPS team for printing support
-
+- Ubuntu Core & Ubuntu Frame (Canonical)
+- Flutter
+- GStreamer & libcamera
+- CUPS

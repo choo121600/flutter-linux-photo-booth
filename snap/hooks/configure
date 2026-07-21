@@ -1,6 +1,6 @@
 #!/bin/bash
 # configure hook: exposes print media as snap configuration.
-#   snap set linux-photo-booth print.media=4x6 print.borderless=true
+#   snap set ubu4cut print.media=4x6 print.borderless=true
 # Defaults target dye-sub photo printers (4x6 borderless). Values are written to
 # $SNAP_DATA/print-config.env, which run-booth sources for the app.
 set -e

@@ -1,10 +1,10 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Linux Photo Booth
-Comment=A professional photo booth application for Ubuntu Core
-Exec=linux-photo-booth
+Name=Ubu4Cut
+Comment=Ubu4Cut photo-booth kiosk for Ubuntu Core + Ubuntu Frame
+Exec=ubu4cut
 Terminal=false
 Categories=Graphics;Photography;Utility;
 Keywords=photo;camera;booth;print;event;kiosk;
-StartupWMClass=linux-photo-booth
+StartupWMClass=ubu4cut

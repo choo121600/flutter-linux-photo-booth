@@ -207,6 +207,7 @@ class _TakePicturePageState extends State<TakePicturePage>
   }
 
   void _takePicture() {
+    if (_takingPicture) return; // ignore double-taps while a capture runs
     setState(() {
       _countdown = 5;
       _takingPicture = true;

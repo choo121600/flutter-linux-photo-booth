@@ -1,6 +1,6 @@
-name: linux-photo-booth
+name: ubu4cut
 version: '1.0.0'
-summary: Professional photo booth application for Ubuntu Core
+summary: Ubu4Cut — photo-booth kiosk for Ubuntu Core + Ubuntu Frame
 description: |
   A professional photo booth application designed for Ubuntu Core + Ubuntu Frame
   (kiosk) and Ubuntu Desktop from a single snap.
@@ -43,13 +43,13 @@ layout:
     bind: $SNAP/usr/libexec/libcamera
 
 # Two app entries share one Flutter binary:
-#   - linux-photo-booth        : Ubuntu Desktop launcher (manual, from the app menu)
-#   - linux-photo-booth-kiosk  : Ubuntu Core kiosk daemon (autostarts under Ubuntu Frame)
+#   - ubu4cut        : Ubuntu Desktop launcher (manual, from the app menu)
+#   - ubu4cut-kiosk  : Ubuntu Core kiosk daemon (autostarts under Ubuntu Frame)
 # Both apps use the `gnome` extension: it provides the complete GTK/GLib/pixbuf/
 # fontconfig/xkb/icon/theme runtime (the gnome-46-2404 content snap) + mesa graphics +
 # wayland — everything a Flutter/GTK app needs, wired up by desktop-launch.
 apps:
-  linux-photo-booth:
+  ubu4cut:
     command: bin/run-booth
     extensions: [gnome]
     plugs:
@@ -61,7 +61,7 @@ apps:
       - desktop-legacy
       - gsettings
       - hardware-observe   # libcamera media-device enumeration (sysfs + udev)
-    desktop: usr/share/applications/linux-photo-booth.desktop
+    desktop: usr/share/applications/ubu4cut.desktop
     environment: &booth-env
       FLUTTER_ENGINE_RUNTIME_MODE: release
       FLUTTER_ENGINE_SWITCH_TO_IMPELLER: "0"
@@ -72,7 +72,7 @@ apps:
   # Ubuntu Core kiosk service. `install-mode: disable` prevents a root daemon
   # crash-loop on Ubuntu Desktop (no seat/Wayland at boot); on Ubuntu Core it is
   # explicitly enabled by setup-ubuntu-core.sh via `snap start --enable`.
-  linux-photo-booth-kiosk:
+  ubu4cut-kiosk:
     command: bin/run-booth
     daemon: simple
     install-mode: disable
@@ -131,7 +131,7 @@ parts:
     plugin: dump
     source: snap/local/desktop/
     organize:
-      linux-photo-booth.desktop: usr/share/applications/linux-photo-booth.desktop
+      ubu4cut.desktop: usr/share/applications/ubu4cut.desktop
 
   launcher:
     plugin: dump

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Linux Photo Booth Snap Builder
-# This script builds the snap package for the Linux Photo Booth application
+# Ubu4Cut Snap Builder
+# This script builds the snap package for the Ubu4Cut application
 
 set -e
 
-echo "Starting Linux Photo Booth Snap build..."
+echo "Starting Ubu4Cut Snap build..."
 
 # Check if snapcraft is installed
 if ! command -v snapcraft &> /dev/null; then
@@ -31,12 +31,12 @@ echo "Note: For Raspberry Pi (arm64) builds, use: snapcraft --destructive-mode"
 snapcraft --use-lxd
 
 # Check if build was successful
-if ls linux-photo-booth_*.snap 1> /dev/null 2>&1; then
+if ls ubu4cut_*.snap 1> /dev/null 2>&1; then
     echo "Snap package built successfully!"
-    echo "Package: $(ls linux-photo-booth_*.snap)"
+    echo "Package: $(ls ubu4cut_*.snap)"
     echo ""
     echo "To install the snap package:"
-    echo "   sudo snap install --dangerous linux-photo-booth_*.snap"
+    echo "   sudo snap install --dangerous ubu4cut_*.snap"
     echo ""
     echo "To test the snap package:"
     echo "   snapcraft try"
