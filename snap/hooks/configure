@@ -1,12 +1,13 @@
 #!/bin/bash
-# configure hook: exposes print media as snap configuration.
+# configure hook: exposes print media + initial screen rotation as snap config.
 #   snap set ubu4cut print.media=4x6 print.borderless=true
-# Defaults target dye-sub photo printers (4x6 borderless). Values are written to
-# $SNAP_DATA/print-config.env, which run-booth sources for the app.
+#   snap set ubu4cut rotate.turns=2        # 0..3 quarter-turns; 2 = 180° flip
+# Values are written to $SNAP_DATA/print-config.env, which run-booth sources.
 set -e
 
 media="$(snapctl get print.media || true)"
 borderless="$(snapctl get print.borderless || true)"
+turns="$(snapctl get rotate.turns || true)"
 
 if [ -z "$media" ]; then
     media="4x6"
@@ -22,9 +23,17 @@ case "$borderless" in
     *) echo "print.borderless must be true or false" >&2; exit 1 ;;
 esac
 
+if [ -n "$turns" ]; then
+    case "$turns" in
+        0|1|2|3) ;;
+        *) echo "rotate.turns must be 0, 1, 2, or 3 (quarter-turns)" >&2; exit 1 ;;
+    esac
+fi
+
 mkdir -p "$SNAP_DATA"
 umask 022
-cat > "$SNAP_DATA/print-config.env" <<EOF
-BOOTH_PRINT_MEDIA=$media
-BOOTH_PRINT_BORDERLESS=$borderless
-EOF
+{
+    echo "BOOTH_PRINT_MEDIA=$media"
+    echo "BOOTH_PRINT_BORDERLESS=$borderless"
+    [ -n "$turns" ] && echo "BOOTH_ROTATE_TURNS=$turns"
+} > "$SNAP_DATA/print-config.env"

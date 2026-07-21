@@ -88,11 +88,11 @@ if [ -z "$FLUTTER_BIN" ]; then
     exit 1
 fi
 
-# Print configuration (media/borderless) written by the configure hook.
+# Print + rotation configuration written by the configure hook.
 if [ -f "$SNAP_DATA/print-config.env" ]; then
     # shellcheck disable=SC1091
     . "$SNAP_DATA/print-config.env"
-    export BOOTH_PRINT_MEDIA BOOTH_PRINT_BORDERLESS
+    export BOOTH_PRINT_MEDIA BOOTH_PRINT_BORDERLESS BOOTH_ROTATE_TURNS
 fi
 
 echo "Starting Ubu4Cut ($(date)) — $FLUTTER_BIN"

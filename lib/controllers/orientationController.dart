@@ -7,8 +7,9 @@ import 'package:get/get.dart';
 /// `main.dart` and cycles the full 360° in 90° steps:
 /// 0 = landscape, 1 = 90°, 2 = 180° (landscape flipped), 3 = 270°.
 ///
-/// Initial state comes from env (BOOTH_PORTRAIT / BOOTH_PORTRAIT_TURNS) and it
-/// is rotated at runtime from the home screen.
+/// Initial state comes from env — `BOOTH_ROTATE_TURNS` (0..3 quarter-turns; use
+/// 2 for a 180°-flipped monitor) or the legacy BOOTH_PORTRAIT /
+/// BOOTH_PORTRAIT_TURNS — and it is rotated at runtime from the home screen.
 class OrientationController extends GetxController {
   final RxInt quarterTurns = _initialTurns.obs;
 
@@ -39,6 +40,12 @@ class OrientationController extends GetxController {
     return (v == 1 || v == 3) ? v : 3;
   }
 
-  static int get _initialTurns =>
-      Platform.environment['BOOTH_PORTRAIT'] == '1' ? _portraitTurns : 0;
+  /// Initial rotation at startup. `BOOTH_ROTATE_TURNS` (0..3) sets it directly —
+  /// use 2 for a 180°-flipped monitor; otherwise falls back to the legacy
+  /// BOOTH_PORTRAIT (+ BOOTH_PORTRAIT_TURNS) toggle.
+  static int get _initialTurns {
+    final t = int.tryParse(Platform.environment['BOOTH_ROTATE_TURNS'] ?? '');
+    if (t != null && t >= 0 && t <= 3) return t;
+    return Platform.environment['BOOTH_PORTRAIT'] == '1' ? _portraitTurns : 0;
+  }
 }
