@@ -17,8 +17,13 @@ class TakePicturePage extends StatefulWidget {
 
 class _TakePicturePageState extends State<TakePicturePage>
     with TickerProviderStateMixin {
-  static const double kPreviewWidth = 525.0;
-  static const double kPreviewHeight = 700.0;
+  // Preview (and captured photo) box. Tunable at runtime via env so the framing
+  // can be dialed in without a rebuild — a wider box crops less of the camera's
+  // 4:3 field of view. Defaults keep the original 3:4 portrait.
+  static final double kPreviewWidth =
+      double.tryParse(Platform.environment['BOOTH_PREVIEW_WIDTH'] ?? '') ?? 525.0;
+  static final double kPreviewHeight =
+      double.tryParse(Platform.environment['BOOTH_PREVIEW_HEIGHT'] ?? '') ?? 700.0;
 
   final ImageController imageController = Get.put(ImageController());
   final GlobalKey cameraKey = GlobalKey();
