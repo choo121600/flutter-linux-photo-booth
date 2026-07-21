@@ -35,5 +35,9 @@ umask 022
 {
     echo "BOOTH_PRINT_MEDIA=$media"
     echo "BOOTH_PRINT_BORDERLESS=$borderless"
-    [ -n "$turns" ] && echo "BOOTH_ROTATE_TURNS=$turns"
+    if [ -n "$turns" ]; then
+        echo "BOOTH_ROTATE_TURNS=$turns"
+    fi
 } > "$SNAP_DATA/print-config.env"
+
+exit 0
