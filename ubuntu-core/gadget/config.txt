@@ -1,0 +1,63 @@
+[all]
+kernel=kernel.img
+cmdline=cmdline.txt
+initramfs initrd.img followkernel
+os_prefix=
+
+[pi4]
+max_framebuffers=2
+arm_boost=1
+
+[all]
+# Enable the audio output, I2C and SPI interfaces on the GPIO header. As these
+# parameters related to the base device-tree they must appear *before* any
+# other dtoverlay= specification
+dtparam=audio=on
+dtparam=i2c_arm=on
+dtparam=spi=on
+
+# Comment out the following line if the edges of the desktop appear outside
+# the edges of your display
+disable_overscan=1
+
+# If you have issues with audio, you may try uncommenting the following line
+# which forces the HDMI output into HDMI mode instead of DVI (which doesn't
+# support audio output)
+#hdmi_drive=2
+
+# Enable the serial pins
+enable_uart=1
+
+[cm4]
+# Enable the USB2 outputs on the IO board (assuming your CM4 is plugged into
+# such a board)
+dtoverlay=dwc2,dr_mode=host
+
+[all]
+
+# --- Ubu4Cut customization (upstream shipped: vc4-fkms-v3d,cma-128) ---
+# FULL KMS (real DRM/KMS). Required by Ubuntu Frame (Wayland), and mandatory on
+# the Raspberry Pi 5, which does NOT support the legacy "fake" KMS. This is what
+# creates /dev/dri/card0 so the kiosk compositor has a display backend to render
+# on. On the Pi 5 the firmware maps this to vc4-kms-v3d-pi5.dtbo automatically.
+# cma-256 reserves contiguous memory for display + CSI camera buffers (raise to
+# cma-512 if libcamera reports buffer-allocation failures at high resolution).
+dtoverlay=vc4-kms-v3d,cma-256
+
+# Auto-detect a CSI camera sensor and load the matching overlay for libcamera
+# (imx708 / imx219 / imx477 / ov5647 / ... are all present in the kernel's
+# overlays/ directory). This is what makes the rp1-cfe front-end + sensor
+# subdevs appear.
+# NOTE: do NOT also set start_x=1 / gpu_mem — those enable the obsolete firmware
+# (MMAL) camera stack, which conflicts with libcamera + full KMS.
+camera_auto_detect=1
+
+# Prior versions of Ubuntu Core customized the on-board LEDs so that the green
+# ACT LED was a heartbeat, and the red PWR LED represented SD card activity.
+# Uncomment the following lines if you wish to restore these customizations
+#dtparam=act_led_trigger=heartbeat
+#dtparam=pwr_led_trigger=mmc0
+
+# Config settings specific to arm64
+arm_64bit=1
+dtoverlay=dwc2

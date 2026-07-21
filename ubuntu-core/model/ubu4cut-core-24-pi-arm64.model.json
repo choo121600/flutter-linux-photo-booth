@@ -1,0 +1,39 @@
+{
+  "type": "model",
+  "series": "16",
+  "authority-id": "REPLACE_WITH_YOUR_BRAND_ID",
+  "brand-id": "REPLACE_WITH_YOUR_BRAND_ID",
+  "model": "ubu4cut-core-24-pi-arm64",
+  "architecture": "arm64",
+  "base": "core24",
+  "grade": "dangerous",
+  "snaps": [
+    {
+      "name": "pi",
+      "type": "gadget",
+      "default-channel": "24/stable"
+    },
+    {
+      "name": "pi-kernel",
+      "type": "kernel",
+      "default-channel": "24/stable"
+    },
+    {
+      "name": "core24",
+      "type": "base",
+      "default-channel": "latest/stable"
+    },
+    {
+      "name": "snapd",
+      "type": "snapd",
+      "default-channel": "latest/stable"
+    },
+    {
+      "name": "console-conf",
+      "type": "app",
+      "default-channel": "24/stable",
+      "presence": "optional"
+    }
+  ],
+  "timestamp": "REPLACE_WITH_ISO8601_UTC"
+}

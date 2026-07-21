@@ -45,4 +45,4 @@ app.*.map.json
 # Ubuntu Core image build (ubuntu-core/build-image.sh) outputs
 /out/
 *.snap
-photobooth.model
+ubu4cut.model

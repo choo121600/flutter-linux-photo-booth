@@ -1,5 +1,5 @@
 #!/bin/bash
-# Linux Photo Booth launcher — Ubuntu Core (Ubuntu Frame kiosk) + Ubuntu Desktop.
+# Ubu4Cut launcher — Ubuntu Core (Ubuntu Frame kiosk) + Ubuntu Desktop.
 # Wayland-only (Ubuntu Frame and modern desktop sessions are Wayland). The legacy
 # X11 fallback and x86-specific GLX tuning were removed; the `gpu` extension now
 # provides mesa/gpu-2404, so only app-specific GStreamer/GTK runtime env remains.
@@ -80,7 +80,7 @@ echo "Camera: kind=${CAMERA_KIND:-none} device=${CAMERA_DEVICE:-none}"
 
 # Resolve the Flutter binary.
 FLUTTER_BIN=""
-for candidate in "$SNAP/bin/linux_photo_booth" "$SNAP/linux_photo_booth"; do
+for candidate in "$SNAP/bin/ubu4cut" "$SNAP/ubu4cut"; do
     if [ -x "$candidate" ]; then FLUTTER_BIN="$candidate"; break; fi
 done
 if [ -z "$FLUTTER_BIN" ]; then
@@ -95,5 +95,5 @@ if [ -f "$SNAP_DATA/print-config.env" ]; then
     export BOOTH_PRINT_MEDIA BOOTH_PRINT_BORDERLESS
 fi
 
-echo "Starting Linux Photo Booth ($(date)) — $FLUTTER_BIN"
+echo "Starting Ubu4Cut ($(date)) — $FLUTTER_BIN"
 exec "$FLUTTER_BIN" "$@"

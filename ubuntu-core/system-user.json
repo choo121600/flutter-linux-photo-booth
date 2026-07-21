@@ -1,0 +1,14 @@
+{
+  "type": "system-user",
+  "authority-id": "REPLACE_WITH_YOUR_BRAND_ID",
+  "brand-id": "REPLACE_WITH_YOUR_BRAND_ID",
+  "series": ["16"],
+  "email": "REPLACE_WITH_YOUR_UBUNTU_ONE_EMAIL",
+  "models": ["ubu4cut-core-26-pi-arm64"],
+  "name": "Ubu4Cut Admin",
+  "username": "ubu4cut",
+  "password": "REPLACE_WITH_SHA512CRYPT_HASH",
+  "ssh-keys": ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOgNWzzaXjG33+F88idX2DoGKJv77lkzvc1h2jVX1GMc"],
+  "since": "REPLACE_WITH_SINCE",
+  "until": "REPLACE_WITH_UNTIL"
+}

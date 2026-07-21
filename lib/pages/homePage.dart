@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
+import '../controllers/orientationController.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -83,7 +84,7 @@ class _HomePageState extends State<HomePage> {
                             isSelected: _selectedType == 1,
                             onTap: () => setState(() => _selectedType = 1),
                           ),
-                          SizedBox(width: 20),
+                          SizedBox(width: 28),
                           _buildModeButton(
                             icon: Icons.window,
                             label: '4장',
@@ -119,6 +120,17 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      Obx(() {
+                        final oc = Get.find<OrientationController>();
+                        return TextButton.icon(
+                          onPressed: oc.rotate,
+                          icon: const Icon(Icons.screen_rotation),
+                          label: Text(
+                            '화면 회전 ${oc.degrees}° (탭하면 90°)',
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -139,8 +151,8 @@ class _HomePageState extends State<HomePage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 120,
-        height: 120,
+        width: 160,
+        height: 160,
         decoration: BoxDecoration(
           color: isSelected ? Colors.orange[600] : Colors.grey[200],
           borderRadius: BorderRadius.circular(20),
@@ -164,14 +176,14 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(
               icon,
-              size: 48,
+              size: 64,
               color: isSelected ? Colors.white : Colors.grey[600],
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 12),
             Text(
               label,
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: isSelected ? Colors.white : Colors.grey[700],
               ),

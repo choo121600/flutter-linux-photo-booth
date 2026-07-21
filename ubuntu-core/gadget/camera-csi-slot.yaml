@@ -1,0 +1,17 @@
+# Appended by ubuntu-core/build-image.sh to the pi gadget snapcraft.yaml's `slots:`.
+# (The pi gadget declares its interface slots in snapcraft.yaml; gadget.yaml holds
+# only the volume/partition layout.)
+#
+# CSI capture pipeline for libcamera on the Pi (RP1 CFE front-end + PiSP ISP +
+# sensor subdevs). The standard snapd `camera` interface only grants /dev/video*
+# and /dev/media*; libcamera on the Pi additionally needs the v4l subdevices and
+# the rp1-cfe front-end node, hence this custom-device slot. Harmless if unused.
+  camera-csi:
+    interface: custom-device
+    custom-device: camera-csi
+    devices:
+      - /dev/media[0-9]*
+      - /dev/v4l-subdev[0-9]*
+      - /dev/video[0-9]*
+    read-devices:
+      - /dev/rp1-cfe*
