@@ -152,14 +152,15 @@ Runtime-tunable at startup, no rebuild required:
 |---|---|---|
 | `BOOTH_PORTRAIT` | `0` | `1` starts the UI in portrait. |
 | `BOOTH_PORTRAIT_TURNS` | `3` | Clockwise quarter-turns for portrait (`1` or `3`). |
+| `BOOTH_ROTATE_TURNS` | unset | Initial rotation, 0..3 quarter-turns (`2` = 180° flip). Set via `snap set ubu4cut rotate.turns=N`. |
 | `BOOTH_TAP_GUARD_MS` | `300` | Post-transition input guard; `0` disables it. |
 | `BOOTH_PREVIEW_WIDTH` / `BOOTH_PREVIEW_HEIGHT` | `525` / `700` | Preview & capture box size. |
 | `BOOTH_CAMERA_KIND` / `DEFAULT_CAMERA_DEVICE` | auto | Override camera detection. |
 | `BOOTH_PRINT_MEDIA` / `BOOTH_PRINT_BORDERLESS` | `4x6` / `true` | Set via `snap set … print.*`. |
 | `BOOTH_AUTOSTART_CAMERA` | unset | Test hook: auto-open the camera page. Off in production. |
 
-Only `print.media` / `print.borderless` are exposed as snap config; the rest are process
-environment variables (set them in `run-booth` or a systemd drop-in for the kiosk daemon).
+`print.media` / `print.borderless` / `rotate.turns` are exposed as snap config
+(`snap set ubu4cut …`); the rest are process environment variables read at startup.
 
 ## Development
 
