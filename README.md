@@ -22,9 +22,9 @@ installations.
   and borderless are snap-configurable; defaults suit 4×6 dye-sub photo printers.
 - **Touch-first kiosk UI** — large finger targets, instant page transitions, and a short
   post-transition *tap guard* that swallows carried-over double-taps.
-- **Runtime portrait/landscape toggle** — rotates the widget tree (not the Frame output,
-  which would break touch mapping) so a physically rotated monitor still maps touches
-  correctly.
+- **Portrait or landscape mounts** — screen rotation is set at deployment via Ubuntu Frame's
+  output orientation, which rotates the display and touch input together (in-app rotation is
+  avoided because it rotates the picture but not touch coordinates on Frame's Mir).
 - **Single snap, two entry points** — a desktop launcher and an Ubuntu Core kiosk daemon
   share one Flutter binary.
 - **Kiosk autostart** under Ubuntu Frame on Ubuntu Core, with automatic restart.
@@ -150,17 +150,31 @@ Runtime-tunable at startup, no rebuild required:
 
 | Variable | Default | Effect |
 |---|---|---|
-| `BOOTH_PORTRAIT` | `0` | `1` starts the UI in portrait. |
-| `BOOTH_PORTRAIT_TURNS` | `3` | Clockwise quarter-turns for portrait (`1` or `3`). |
-| `BOOTH_ROTATE_TURNS` | unset | Initial rotation, 0..3 quarter-turns (`2` = 180° flip). Set via `snap set ubu4cut rotate.turns=N`. |
 | `BOOTH_TAP_GUARD_MS` | `300` | Post-transition input guard; `0` disables it. |
 | `BOOTH_PREVIEW_WIDTH` / `BOOTH_PREVIEW_HEIGHT` | `525` / `700` | Preview & capture box size. |
 | `BOOTH_CAMERA_KIND` / `DEFAULT_CAMERA_DEVICE` | auto | Override camera detection. |
 | `BOOTH_PRINT_MEDIA` / `BOOTH_PRINT_BORDERLESS` | `4x6` / `true` | Set via `snap set … print.*`. |
 | `BOOTH_AUTOSTART_CAMERA` | unset | Test hook: auto-open the camera page. Off in production. |
 
-`print.media` / `print.borderless` / `rotate.turns` are exposed as snap config
-(`snap set ubu4cut …`); the rest are process environment variables read at startup.
+`print.media` / `print.borderless` are exposed as snap config (`snap set ubu4cut …`); the
+rest are process environment variables read at startup.
+
+**Screen rotation** is handled by **Ubuntu Frame's output orientation**, not in-app — an
+in-app rotation would rotate the picture but not the incoming touch coordinates on Frame's
+Mir, so taps land in the wrong place. Set it once to match the physical mount (this rotates
+display + touch together), e.g. for a portrait-mounted panel:
+
+```bash
+sudo snap set ubuntu-frame display='layouts:
+  default:
+    cards:
+    - card-id: 0
+      HDMI-A-2:
+        state: enabled
+        mode: 1920x1080@60.0
+        orientation: left'   # normal | right | inverted | left
+sudo snap restart ubuntu-frame
+```
 
 ## Development
 

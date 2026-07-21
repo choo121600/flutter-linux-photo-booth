@@ -1,13 +1,17 @@
 #!/bin/bash
-# configure hook: exposes print media + initial screen rotation as snap config.
+# configure hook: exposes print media as snap configuration.
 #   snap set ubu4cut print.media=4x6 print.borderless=true
-#   snap set ubu4cut rotate.turns=2        # 0..3 quarter-turns; 2 = 180° flip
 # Values are written to $SNAP_DATA/print-config.env, which run-booth sources.
+#
+# NOTE: screen rotation is handled by Ubuntu Frame's OUTPUT orientation, e.g.
+#   snap set ubuntu-frame display='...orientation: normal|right|inverted|left'
+# It is intentionally NOT done in-app: in-app (RotatedBox) rotation rotates the
+# picture but not the incoming touch coordinates on Frame's Mir, so taps land in
+# the wrong place. Frame output rotation rotates display + touch together.
 set -e
 
 media="$(snapctl get print.media || true)"
 borderless="$(snapctl get print.borderless || true)"
-turns="$(snapctl get rotate.turns || true)"
 
 if [ -z "$media" ]; then
     media="4x6"
@@ -23,21 +27,11 @@ case "$borderless" in
     *) echo "print.borderless must be true or false" >&2; exit 1 ;;
 esac
 
-if [ -n "$turns" ]; then
-    case "$turns" in
-        0|1|2|3) ;;
-        *) echo "rotate.turns must be 0, 1, 2, or 3 (quarter-turns)" >&2; exit 1 ;;
-    esac
-fi
-
 mkdir -p "$SNAP_DATA"
 umask 022
-{
-    echo "BOOTH_PRINT_MEDIA=$media"
-    echo "BOOTH_PRINT_BORDERLESS=$borderless"
-    if [ -n "$turns" ]; then
-        echo "BOOTH_ROTATE_TURNS=$turns"
-    fi
-} > "$SNAP_DATA/print-config.env"
+cat > "$SNAP_DATA/print-config.env" <<EOF
+BOOTH_PRINT_MEDIA=$media
+BOOTH_PRINT_BORDERLESS=$borderless
+EOF
 
 exit 0

@@ -112,9 +112,12 @@ echo "$WAYLAND_DISPLAY"           # wayland-0 under the kiosk
 snap restart ubuntu-frame         # re-apply Frame changes
 ```
 
-- **Orientation:** rotate the UI **in-app** with `BOOTH_PORTRAIT=1` (and
-  `BOOTH_PORTRAIT_TURNS=1|3`). Do not rotate the Frame output — display rotation breaks
-  touch grab/mapping on Frame's Mir, which is why the booth rotates its widget tree instead.
+- **Orientation:** rotate via **Ubuntu Frame's output orientation**, NOT in-app. An in-app
+  (RotatedBox) rotation turns the picture but not the incoming touch coordinates on Frame's
+  Mir, so taps land in the wrong place; Frame output rotation turns display + touch together.
+  Set it to match the physical mount, then restart Frame:
+  `sudo snap set ubuntu-frame display='…orientation: left'` (normal|right|inverted|left) →
+  `sudo snap restart ubuntu-frame`.
 - **Display placement/output config** is configured through Ubuntu Frame's own configuration
   (see the [Ubuntu Frame docs](https://snapcraft.io/ubuntu-frame)), not through invented
   `daemon.*` keys.

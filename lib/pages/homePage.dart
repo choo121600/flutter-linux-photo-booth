@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
-import '../controllers/orientationController.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -120,17 +119,6 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      Obx(() {
-                        final oc = Get.find<OrientationController>();
-                        return TextButton.icon(
-                          onPressed: oc.rotate,
-                          icon: const Icon(Icons.screen_rotation),
-                          label: Text(
-                            '화면 회전 ${oc.degrees}° (탭하면 90°)',
-                          ),
-                        );
-                      }),
                     ],
                   ),
                 ),
