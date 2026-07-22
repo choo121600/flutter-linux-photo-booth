@@ -80,6 +80,7 @@ class _HomePageState extends State<HomePage> {
     return RichText(
       text: const TextSpan(
         style: TextStyle(
+          fontFamily: 'Ubuntu',
           fontSize: 76,
           fontWeight: FontWeight.w900,
           letterSpacing: 2,
