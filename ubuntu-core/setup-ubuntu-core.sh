@@ -50,6 +50,43 @@ for slotpair in \
     snap connect $slotpair 2>/dev/null || echo "  (skip/verify: snap connect $slotpair)"
 done
 
+echo "-- Registering the connected printer (best-effort) --"
+# The dye-sub is driven by the Gutenprint Printer Application; we then bridge it
+# into the cups snap (the booth's `lp` reaches cups via the `cups` interface) and
+# align the booth's media with the printer so jobs aren't rejected. Device bits
+# are discovered at runtime; override PRINTER_* via env for other hardware.
+PRINTER_NAME="${PRINTER_NAME:-SELPHY}"
+# Canon SELPHY CP1500 has no dedicated model yet but shares the CP1300's
+# Raster3/CA_YCC_ICP protocol, so the CP1300 Gutenprint driver drives it.
+PRINTER_DRIVER="${PRINTER_DRIVER:-canon--selphy-cp-1300--en}"
+PRINTER_APP_PORT="${PRINTER_APP_PORT:-8000}"
+DEV_URI=""
+for _ in $(seq 1 10); do
+    DEV_URI="$("$PRINTER_APP_SNAP" devices 2>/dev/null | grep -m1 '^usb://' || true)"
+    [ -n "$DEV_URI" ] && break
+    sleep 2
+done
+if [ -z "$DEV_URI" ]; then
+    echo "  (no USB printer detected; connect + power it and re-run, or register manually)"
+else
+    echo "  device: $DEV_URI"
+    "$PRINTER_APP_SNAP" add -d "$PRINTER_NAME" -v "$DEV_URI" -m "$PRINTER_DRIVER" \
+        || echo "  (printer-app add failed; check PRINTER_DRIVER=$PRINTER_DRIVER)"
+    "$PRINTER_APP_SNAP" default -d "$PRINTER_NAME" 2>/dev/null || true
+    PAPP_URI="ipp://localhost:${PRINTER_APP_PORT}/ipp/print/${PRINTER_NAME}"
+    cups.lpadmin -p "$PRINTER_NAME" -E -v "$PAPP_URI" -m everywhere \
+        || echo "  (cups bridge failed; is the Printer Application on :$PRINTER_APP_PORT ?)"
+    cups.lpadmin -d "$PRINTER_NAME" 2>/dev/null || true
+    # The app forces `-o media=<print.media>`; a size the printer doesn't list
+    # (generic 4x6 = 101.6x152.4mm vs a SELPHY's 105.66x158.5mm postcard) is
+    # rejected "cannot print with supplied options". Use the printer's default.
+    MEDIA="$(cups.ipptool -tv "$PAPP_URI" get-printer-attributes.test 2>/dev/null \
+        | awk -F'= ' '/media-default \(keyword\)/{gsub(/[[:space:]]/,"",$2); print $2; exit}')"
+    [ -n "$MEDIA" ] && { snap set "$BOOTH_SNAP" print.media="$MEDIA" || true; \
+        echo "  print media set to printer default: $MEDIA"; }
+    echo "  cups default: $(cups.lpstat -d 2>/dev/null || echo '?')"
+fi
+
 echo "-- Enabling the kiosk daemon (install-mode:disable requires explicit enable) --"
 snap start --enable "$KIOSK_APP" || echo "  (verify kiosk app name: $KIOSK_APP)"
 
@@ -60,11 +97,10 @@ Next / verify:
   snap connections ${BOOTH_SNAP}          # confirm camera/cups/wayland are connected
   snap services ${BOOTH_SNAP}             # kiosk daemon should be enabled/active
   snap logs ${KIOSK_APP} -n 50            # boot/render logs
-  # Set the default printer once the dye-sub is detected by the Printer Application:
-  #   lpstat -p            (via the cups snap)
-  #   lpadmin -d <printer> # or the cups web UI at http://localhost:631
-  # Configure photo media (defaults 4x6 / borderless):
-  #   snap set ${BOOTH_SNAP} print.media=4x6 print.borderless=true
+  # Printer auto-registered above (if connected). Verify / adjust:
+  #   cups.lpstat -p -d                      # printer + default (via the cups snap)
+  #   snap get ${BOOTH_SNAP} print.media     # media (auto-set to the printer default)
+  #   snap set ${BOOTH_SNAP} print.media=<keyword> print.borderless=true
 
 CSI camera + full KMS are NOT enabled by this script (gadget-owned config.txt).
 See ubuntu-core/gadget-camera-kms.md.
