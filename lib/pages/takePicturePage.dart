@@ -81,7 +81,7 @@ class _TakePicturePageState extends State<TakePicturePage>
       return const BoothScaffold(
         child: Center(
           child: Text(
-            '잘못된 모드입니다',
+            'Invalid mode',
             style: TextStyle(color: Colors.white, fontSize: 24),
           ),
         ),
@@ -107,7 +107,7 @@ class _TakePicturePageState extends State<TakePicturePage>
                   Border.all(color: Colors.white.withOpacity(0.35), width: 1.5),
             ),
             child: Text(
-              '$_picturesTaken / $_selectedType 장',
+              '$_picturesTaken / $_selectedType',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -130,7 +130,7 @@ class _TakePicturePageState extends State<TakePicturePage>
                       ),
                     )
                   : const Text(
-                      '준비되면 촬영하기를 누르세요',
+                      'Tap the button when ready',
                       style: TextStyle(color: Colors.white70, fontSize: 18),
                     ),
             ),
@@ -175,7 +175,7 @@ class _TakePicturePageState extends State<TakePicturePage>
               child: ElevatedButton.icon(
                 onPressed: _switchToCamera,
                 icon: const Icon(Icons.videocam),
-                label: const Text('실제 카메라로 전환'),
+                label: const Text('Switch to camera'),
                 style:
                     ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
               ),
@@ -188,7 +188,7 @@ class _TakePicturePageState extends State<TakePicturePage>
                 onPressed: _takingPicture ? null : _takePicture,
                 icon: const Icon(Icons.camera_alt_rounded, size: 28),
                 label: Text(
-                  _takingPicture ? '촬영 중…' : '촬영하기',
+                  _takingPicture ? 'Taking…' : 'Take Photo',
                   style:
                       const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
@@ -213,7 +213,7 @@ class _TakePicturePageState extends State<TakePicturePage>
                 },
                 icon: const Icon(Icons.check_rounded, size: 30),
                 label: const Text(
-                  '확인하고 인쇄',
+                  'Review & Print',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(

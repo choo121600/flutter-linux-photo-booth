@@ -35,7 +35,7 @@ class BoothBackButton extends StatelessWidget {
   const BoothBackButton({
     Key? key,
     required this.onPressed,
-    this.label = '뒤로',
+    this.label = 'Back',
   }) : super(key: key);
 
   @override

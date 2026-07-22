@@ -10,9 +10,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // Verify home page content is displayed
-    expect(find.text('사진 모드를 선택하세요'), findsOneWidget);
-    expect(find.text('1장'), findsOneWidget);
-    expect(find.text('4장'), findsOneWidget);
-    expect(find.text('사진 촬영 시작'), findsOneWidget);
+    expect(find.text('Choose your mode'), findsOneWidget);
+    expect(find.text('1 Cut'), findsOneWidget);
+    expect(find.text('4 Cuts'), findsOneWidget);
+    expect(find.text('Start'), findsOneWidget);
   });
 }

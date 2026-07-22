@@ -42,7 +42,7 @@ class _HomePageState extends State<HomePage> {
             _buildTagline(),
             const SizedBox(height: 64),
             const Text(
-              '사진 모드를 선택하세요',
+              'Choose your mode',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 28,
@@ -55,14 +55,14 @@ class _HomePageState extends State<HomePage> {
               children: [
                 _buildModeButton(
                   icon: Icons.crop_square_rounded,
-                  label: '1장',
+                  label: '1 Cut',
                   isSelected: _selectedType == 1,
                   onTap: () => setState(() => _selectedType = 1),
                 ),
                 const SizedBox(width: 28),
                 _buildModeButton(
                   icon: Icons.grid_view_rounded,
-                  label: '4장',
+                  label: '4 Cuts',
                   isSelected: _selectedType == 4,
                   onTap: () => setState(() => _selectedType = 4),
                 ),
@@ -80,6 +80,7 @@ class _HomePageState extends State<HomePage> {
     return RichText(
       text: const TextSpan(
         style: TextStyle(
+          fontFamily: 'Ubuntu',
           fontSize: 76,
           fontWeight: FontWeight.w900,
           letterSpacing: 2,
@@ -103,7 +104,7 @@ class _HomePageState extends State<HomePage> {
         border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.5),
       ),
       child: const Text(
-        '즉석 네컷사진',
+        'Instant Photo Booth',
         style: TextStyle(
           color: Colors.white,
           fontSize: 20,
@@ -124,7 +125,7 @@ class _HomePageState extends State<HomePage> {
         },
         icon: const Icon(Icons.camera_alt_rounded, size: 30),
         label: const Text(
-          '사진 촬영 시작',
+          'Start',
           style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
         ),
         style: ElevatedButton.styleFrom(
