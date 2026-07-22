@@ -64,8 +64,10 @@ class MyApp extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             minimumSize: const Size(220, 72),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-            textStyle:
-                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            textStyle: const TextStyle(
+                fontFamily: 'NotoSansKR',
+                fontSize: 22,
+                fontWeight: FontWeight.bold),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -75,8 +77,10 @@ class MyApp extends StatelessWidget {
           style: TextButton.styleFrom(
             minimumSize: const Size(200, 64),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            textStyle:
-                const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            textStyle: const TextStyle(
+                fontFamily: 'NotoSansKR',
+                fontSize: 20,
+                fontWeight: FontWeight.bold),
           ),
         ),
       ),
