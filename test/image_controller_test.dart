@@ -10,14 +10,28 @@ void main() {
       controller = ImageController();
     });
 
-    test('starts with empty capturedImages list', () {
+    test('starts with an empty capturedImages list', () {
       expect(controller.capturedImages, isEmpty);
     });
 
     test('can add captured images', () {
-      final testData = ByteData(10);
-      controller.capturedImages.add(testData);
+      controller.capturedImages.add(ByteData(10));
       expect(controller.capturedImages.length, 1);
+    });
+
+    test('preserves insertion order', () {
+      final first = ByteData(1);
+      final second = ByteData(2);
+      controller.capturedImages.addAll([first, second]);
+      expect(controller.capturedImages, [first, second]);
+    });
+
+    test('reset() clears a full four-cut buffer', () {
+      controller.capturedImages.addAll(List.generate(4, (_) => ByteData(10)));
+      expect(controller.capturedImages.length, 4);
+
+      controller.reset();
+      expect(controller.capturedImages, isEmpty);
     });
   });
 }
