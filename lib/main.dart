@@ -57,6 +57,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        fontFamily: 'NotoSansKR',
         // Touch-kiosk sizing: large, finger-friendly buttons everywhere so taps
         // don't miss. Individual buttons may still override via their own style.
         elevatedButtonTheme: ElevatedButtonThemeData(
