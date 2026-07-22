@@ -6,11 +6,11 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_gstreamer_player/flutter_gstreamer_player.dart';
-import '../controllers/imageController.dart';
-import '../widgets/boothScaffold.dart';
+import '../controllers/image_controller.dart';
+import '../widgets/booth_scaffold.dart';
 
 class TakePicturePage extends StatefulWidget {
-  const TakePicturePage({Key? key}) : super(key: key);
+  const TakePicturePage({super.key});
 
   @override
   State<TakePicturePage> createState() => _TakePicturePageState();
@@ -22,9 +22,11 @@ class _TakePicturePageState extends State<TakePicturePage>
   // can be dialed in without a rebuild — a wider box crops less of the camera's
   // 4:3 field of view. Large 3:4 portrait default so the live view is prominent.
   static final double kPreviewWidth =
-      double.tryParse(Platform.environment['BOOTH_PREVIEW_WIDTH'] ?? '') ?? 660.0;
+      double.tryParse(Platform.environment['BOOTH_PREVIEW_WIDTH'] ?? '') ??
+          660.0;
   static final double kPreviewHeight =
-      double.tryParse(Platform.environment['BOOTH_PREVIEW_HEIGHT'] ?? '') ?? 880.0;
+      double.tryParse(Platform.environment['BOOTH_PREVIEW_HEIGHT'] ?? '') ??
+          880.0;
 
   final ImageController imageController = Get.put(ImageController());
   final GlobalKey cameraKey = GlobalKey();
@@ -35,7 +37,6 @@ class _TakePicturePageState extends State<TakePicturePage>
   bool _takingPicture = false;
   bool _cameraInitialized = false;
   String? _cameraError;
-  bool _useTestPattern = false; // 키오스크: 기본은 실제 카메라
   late AnimationController _animationController;
 
   @override
@@ -43,7 +44,7 @@ class _TakePicturePageState extends State<TakePicturePage>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
     );
     _selectedType = Get.arguments as int?;
     imageController.reset(); // start each capture session with a clean slate
@@ -52,13 +53,12 @@ class _TakePicturePageState extends State<TakePicturePage>
 
   void _initializeCamera() async {
     try {
-      // 카메라 초기화 지연을 통해 안전성 확보
-      await Future.delayed(Duration(milliseconds: 500));
-      
+      await Future.delayed(const Duration(milliseconds: 500));
+
       setState(() {
         _cameraInitialized = true;
       });
-      
+
       debugPrint('Camera initialization completed');
     } catch (e) {
       setState(() {
@@ -101,10 +101,10 @@ class _TakePicturePageState extends State<TakePicturePage>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
+              color: Colors.white.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(999),
-              border:
-                  Border.all(color: Colors.white.withOpacity(0.35), width: 1.5),
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.35), width: 1.5),
             ),
             child: Text(
               '$_picturesTaken / $_selectedType',
@@ -144,7 +144,7 @@ class _TakePicturePageState extends State<TakePicturePage>
               border: Border.all(color: Colors.white, width: 4),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.35),
+                  color: Colors.black.withValues(alpha: 0.35),
                   blurRadius: 24,
                   offset: const Offset(0, 10),
                 ),
@@ -168,18 +168,6 @@ class _TakePicturePageState extends State<TakePicturePage>
             ),
           ),
           const SizedBox(height: 28),
-          // Diagnostic-only: switch back to the real camera from a test pattern
-          if (_useTestPattern && _cameraInitialized)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: ElevatedButton.icon(
-                onPressed: _switchToCamera,
-                icon: const Icon(Icons.videocam),
-                label: const Text('Switch to camera'),
-                style:
-                    ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
-              ),
-            ),
           if (_picturesTaken < _selectedType!)
             SizedBox(
               width: 300,
@@ -189,8 +177,8 @@ class _TakePicturePageState extends State<TakePicturePage>
                 icon: const Icon(Icons.camera_alt_rounded, size: 28),
                 label: Text(
                   _takingPicture ? 'Taking…' : 'Take Photo',
-                  style:
-                      const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _takingPicture ? Colors.grey : kBoothAccent,
@@ -233,7 +221,7 @@ class _TakePicturePageState extends State<TakePicturePage>
 
   Widget _buildOverlay() {
     return AnimatedOpacity(
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       opacity: _animationController.value,
       child: Container(
         width: kPreviewWidth,
@@ -250,7 +238,7 @@ class _TakePicturePageState extends State<TakePicturePage>
       _takingPicture = true;
     });
 
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() {
         if (_countdown > 0) {
@@ -259,7 +247,7 @@ class _TakePicturePageState extends State<TakePicturePage>
           _timer?.cancel();
           _captureAndSaveImage();
           _animationController.forward();
-          Future.delayed(Duration(milliseconds: 300), () {
+          Future.delayed(const Duration(milliseconds: 300), () {
             _animationController.reverse();
           });
         }
@@ -268,7 +256,6 @@ class _TakePicturePageState extends State<TakePicturePage>
   }
 
   Widget _buildCameraWidget() {
-    // 에러가 있으면 에러 화면 표시
     if (_cameraError != null) {
       return Container(
         width: kPreviewWidth,
@@ -278,21 +265,21 @@ class _TakePicturePageState extends State<TakePicturePage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.error_outline,
                 color: Colors.red,
                 size: 64,
               ),
-              SizedBox(height: 16),
-              Text(
+              const SizedBox(height: 16),
+              const Text(
                 'Camera Error',
                 style: TextStyle(color: Colors.white, fontSize: 18),
               ),
               Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Text(
                   _cameraError!,
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -301,14 +288,13 @@ class _TakePicturePageState extends State<TakePicturePage>
         ),
       );
     }
-    
-    // 초기화 중이면 로딩 화면 표시
+
     if (!_cameraInitialized) {
       return Container(
         width: kPreviewWidth,
         height: kPreviewHeight,
         color: Colors.black,
-        child: Center(
+        child: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -323,8 +309,7 @@ class _TakePicturePageState extends State<TakePicturePage>
         ),
       );
     }
-    
-    // 카메라가 초기화되면 실제 GStreamer 위젯 표시
+
     try {
       // Mirror the live view horizontally so posing feels like a mirror. The
       // capture reads this same flipped render tree via the RepaintBoundary, so
@@ -352,17 +337,17 @@ class _TakePicturePageState extends State<TakePicturePage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, color: Colors.red, size: 48),
-              SizedBox(height: 16),
-              Text(
+              const Icon(Icons.error_outline, color: Colors.red, size: 48),
+              const SizedBox(height: 16),
+              const Text(
                 'GStreamer Error',
                 style: TextStyle(color: Colors.white, fontSize: 18),
               ),
               Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Text(
                   e.toString(),
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -374,11 +359,8 @@ class _TakePicturePageState extends State<TakePicturePage>
   }
 
   String _getCameraPipeline() {
-    if (_useTestPattern) {
-      // 진단용 테스트 패턴 (수동 전환 시)
-      return '''videotestsrc pattern=ball ! video/x-raw,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
-    }
-    // 카메라 소스 무관: run-booth가 감지해 전달한 종류/디바이스 사용.
+    // Camera source is auto-detected by run-booth via env
+    // (BOOTH_CAMERA_KIND / DEFAULT_CAMERA_DEVICE).
     final String kind =
         (Platform.environment['BOOTH_CAMERA_KIND'] ?? '').toLowerCase();
     final String device =
@@ -395,19 +377,6 @@ class _TakePicturePageState extends State<TakePicturePage>
     }
     // USB UVC (v4l2).
     return '''v4l2src device=$device ! video/x-raw,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
-  }
-  
-  void _switchToCamera() {
-    if (!_useTestPattern) return;
-    
-    setState(() {
-      _useTestPattern = false;
-      _cameraInitialized = false;
-      _cameraError = null;
-    });
-    
-    // 카메라로 전환 후 재초기화
-    _initializeCamera();
   }
 
   void _captureAndSaveImage() async {
@@ -436,5 +405,4 @@ class _TakePicturePageState extends State<TakePicturePage>
       });
     }
   }
-
 }

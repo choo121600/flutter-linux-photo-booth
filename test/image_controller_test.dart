@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ubu4cut/controllers/imageController.dart';
+import 'package:ubu4cut/controllers/image_controller.dart';
 
 void main() {
   group('ImageController', () {
