@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_gstreamer_player/flutter_gstreamer_player.dart';
 import '../controllers/imageController.dart';
+import '../widgets/boothScaffold.dart';
 
 class TakePicturePage extends StatefulWidget {
   const TakePicturePage({Key? key}) : super(key: key);
@@ -45,6 +46,7 @@ class _TakePicturePageState extends State<TakePicturePage>
       duration: Duration(milliseconds: 300),
     );
     _selectedType = Get.arguments as int?;
+    imageController.reset(); // start each capture session with a clean slate
     _initializeCamera();
   }
 
@@ -76,120 +78,151 @@ class _TakePicturePageState extends State<TakePicturePage>
   @override
   Widget build(BuildContext context) {
     if (_selectedType == null || _selectedType! <= 0) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Error'),
-        ),
-        body: const Center(
-          child: Text('Invalid selected type'),
+      return const BoothScaffold(
+        child: Center(
+          child: Text(
+            '잘못된 모드입니다',
+            style: TextStyle(color: Colors.white, fontSize: 24),
+          ),
         ),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Take Photo'),
-        backgroundColor: Colors.transparent,
-        elevation: 0.0,
-      ),
-      extendBodyBehindAppBar: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/backgrounds/appBackground.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Pictures Taken: $_picturesTaken / $_selectedType',
-              style: Theme.of(context).textTheme.titleLarge,
+    return BoothScaffold(
+      showBack: true,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Progress counter
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(999),
+              border:
+                  Border.all(color: Colors.white.withOpacity(0.35), width: 1.5),
             ),
-            SizedBox(height: 20),
-            _countdown > 0
-                ? Container(
-                    padding: EdgeInsets.symmetric(vertical: 10),
-                    child: Center(
-                      child: Text(
-                        '$_countdown seconds left',
-                        style: TextStyle(fontSize: 24, color: Colors.orange),
-                      ),
-                    ),
-                  )
-                : SizedBox(height: 44),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Center(
-                    child: SizedBox(
-                      width: kPreviewWidth,
-                      height: kPreviewHeight,
-                      child: Stack(
-                        children: [
-                          RepaintBoundary(
-                            key: cameraKey,
-                            child: _buildCameraWidget(),
-                          ),
-                          if (_takingPicture) _buildOverlay(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+            child: Text(
+              '$_picturesTaken / $_selectedType 장',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            Column(
-              children: [
-                // 테스트 패턴/카메라 전환 버튼
-                if (_useTestPattern && _cameraInitialized)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: ElevatedButton.icon(
-                      onPressed: _switchToCamera,
-                      icon: Icon(Icons.videocam),
-                      label: Text('Switch to Camera'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+          ),
+          const SizedBox(height: 18),
+          // Countdown badge — reserves height so the layout doesn't jump
+          SizedBox(
+            height: 64,
+            child: Center(
+              child: _takingPicture && _countdown > 0
+                  ? Text(
+                      '$_countdown',
+                      style: const TextStyle(
+                        color: kBoothAccent,
+                        fontSize: 52,
+                        fontWeight: FontWeight.w900,
                       ),
+                    )
+                  : const Text(
+                      '준비되면 촬영하기를 누르세요',
+                      style: TextStyle(color: Colors.white70, fontSize: 18),
                     ),
-                  ),
-                if (!_useTestPattern)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      'Using Real Camera',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                _picturesTaken < _selectedType!
-                    ? ElevatedButton(
-                        onPressed: _takingPicture ? null : _takePicture,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _takingPicture ? Colors.grey : null,
-                        ),
-                        child: const Text('Take Picture'),
-                      )
-                    : SizedBox(),
-                _picturesTaken >= _selectedType!
-                    ? ElevatedButton(
-                        onPressed: () {
-                          Get.toNamed('/print-page',
-                              arguments: imageController.capturedImages);
-                        },
-                        child: const Text('Preview & Print'),
-                      )
-                    : SizedBox(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Camera preview, framed. The RepaintBoundary still wraps exactly the
+          // camera widget so the captured PNG is unaffected by the frame/clip.
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white, width: 4),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.35),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
               ],
             ),
-          ],
-        ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: SizedBox(
+                width: kPreviewWidth,
+                height: kPreviewHeight,
+                child: Stack(
+                  children: [
+                    RepaintBoundary(
+                      key: cameraKey,
+                      child: _buildCameraWidget(),
+                    ),
+                    if (_takingPicture) _buildOverlay(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Diagnostic-only: switch back to the real camera from a test pattern
+          if (_useTestPattern && _cameraInitialized)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: ElevatedButton.icon(
+                onPressed: _switchToCamera,
+                icon: const Icon(Icons.videocam),
+                label: const Text('실제 카메라로 전환'),
+                style:
+                    ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
+              ),
+            ),
+          if (_picturesTaken < _selectedType!)
+            SizedBox(
+              width: 300,
+              height: 84,
+              child: ElevatedButton.icon(
+                onPressed: _takingPicture ? null : _takePicture,
+                icon: const Icon(Icons.camera_alt_rounded, size: 28),
+                label: Text(
+                  _takingPicture ? '촬영 중…' : '촬영하기',
+                  style:
+                      const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _takingPicture ? Colors.grey : kBoothAccent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  elevation: 8,
+                ),
+              ),
+            ),
+          if (_picturesTaken >= _selectedType!)
+            SizedBox(
+              width: 320,
+              height: 84,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Get.toNamed('/print-page',
+                      arguments: imageController.capturedImages);
+                },
+                icon: const Icon(Icons.check_rounded, size: 30),
+                label: const Text(
+                  '확인하고 인쇄',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kBoothAccent,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  elevation: 8,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

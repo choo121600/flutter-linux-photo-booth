@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../controllers/imageController.dart';
 import '../helpers/images_overlay_helper.dart';
+import '../widgets/boothScaffold.dart';
 
 // Print media comes from the snap `configure` hook via env
 // (BOOTH_PRINT_MEDIA / BOOTH_PRINT_BORDERLESS); defaults suit dye-sub 4x6.
@@ -68,54 +69,108 @@ class _PrintPageState extends State<PrintPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Preview & Print'),
-        backgroundColor: Colors.transparent,
-        elevation: 0.0,
-      ),
-      extendBodyBehindAppBar: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/backgrounds/appBackground.png'),
-            fit: BoxFit.cover,
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_combinedImageData != null)
-                Image.memory(
-                  _combinedImageData!.buffer.asUint8List(),
-                  fit: BoxFit.contain,
-                  width: MediaQuery.of(context).size.width * 0.5,
-                  height: MediaQuery.of(context).size.height * 0.5,
+    return BoothScaffold(
+      showBack: true,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              '미리보기',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (_combinedImageData != null)
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white, width: 4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-              if (_combinedImageData == null) Container(),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ElevatedButton(
-                  onPressed: (_combinedImageData == null || _printing)
-                      ? null
-                      : _printImage,
-                  child:
-                      Text(_printing ? 'Printing…' : 'Print the picture'),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.memory(
+                    _combinedImageData!.buffer.asUint8List(),
+                    fit: BoxFit.contain,
+                    width: MediaQuery.of(context).size.width * 0.5,
+                    height: MediaQuery.of(context).size.height * 0.5,
+                  ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    imageController.reset();
-                    Get.offAllNamed('/');
-                  },
-                  child: const Text('Go to Home'),
+            if (_combinedImageData == null)
+              const SizedBox(
+                width: 200,
+                height: 200,
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white),
                 ),
               ),
-            ],
-          ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 220,
+                  height: 84,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      imageController.reset();
+                      Get.offAllNamed('/');
+                    },
+                    icon: const Icon(Icons.home_rounded, size: 28),
+                    label: const Text(
+                      '처음으로',
+                      style:
+                          TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.16),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      side: const BorderSide(color: Colors.white54, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                SizedBox(
+                  width: 260,
+                  height: 84,
+                  child: ElevatedButton.icon(
+                    onPressed: (_combinedImageData == null || _printing)
+                        ? null
+                        : _printImage,
+                    icon: const Icon(Icons.print_rounded, size: 30),
+                    label: Text(
+                      _printing ? '인쇄 중…' : '인쇄하기',
+                      style: const TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kBoothAccent,
+                      foregroundColor: Colors.white,
+                      elevation: 8,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

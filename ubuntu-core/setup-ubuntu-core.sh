@@ -23,6 +23,7 @@ fi
 echo "-- Installing Ubuntu Frame (Wayland compositor) --"
 snap install ubuntu-frame
 snap set ubuntu-frame daemon=true            # valid Frame key (NOT daemon.command)
+snap set ubuntu-frame config='cursor=null' # hide mouse pointer (touch-only kiosk; 'null' not 'none')
 
 echo "-- Installing CUPS + Printer Application (dye-sub) --"
 snap install cups

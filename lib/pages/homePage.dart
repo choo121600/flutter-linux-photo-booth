@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
-import '../controllers/orientationController.dart';
+
+import '../widgets/boothScaffold.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -31,112 +32,109 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-            image: DecorationImage(
-          image: AssetImage('assets/backgrounds/mainHomeBackground.png'),
-          fit: BoxFit.cover,
-        )),
-        child: Center(
-          child: Transform(
-            transform: Matrix4.translationValues(0, 150, 0),
-            child: Column(
+    return BoothScaffold(
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildBrand(),
+            const SizedBox(height: 14),
+            _buildTagline(),
+            const SizedBox(height: 64),
+            const Text(
+              '사진 모드를 선택하세요',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 28),
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text(
-                  '사진 모드를 선택하세요:',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(2.0, 2.0),
-                        blurRadius: 4.0,
-                        color: Colors.black.withOpacity(0.5),
-                      ),
-                    ],
-                  ),
+              children: [
+                _buildModeButton(
+                  icon: Icons.crop_square_rounded,
+                  label: '1장',
+                  isSelected: _selectedType == 1,
+                  onTap: () => setState(() => _selectedType = 1),
                 ),
-                const SizedBox(height: 40),
-                Container(
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        spreadRadius: 2,
-                        blurRadius: 10,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildModeButton(
-                            icon: Icons.square_rounded,
-                            label: '1장',
-                            isSelected: _selectedType == 1,
-                            onTap: () => setState(() => _selectedType = 1),
-                          ),
-                          SizedBox(width: 28),
-                          _buildModeButton(
-                            icon: Icons.window,
-                            label: '4장',
-                            isSelected: _selectedType == 4,
-                            onTap: () => setState(() => _selectedType = 4),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 30),
-                      SizedBox(
-                        width: 300,
-                        height: 80,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Get.toNamed('/take-picture-page',
-                                arguments: _selectedType);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange[600],
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            elevation: 8,
-                            shadowColor: Colors.black.withOpacity(0.3),
-                          ),
-                          child: Text(
-                            '사진 촬영 시작',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Obx(() {
-                        final oc = Get.find<OrientationController>();
-                        return TextButton.icon(
-                          onPressed: oc.rotate,
-                          icon: const Icon(Icons.screen_rotation),
-                          label: Text(
-                            '화면 회전 ${oc.degrees}° (탭하면 90°)',
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
+                const SizedBox(width: 28),
+                _buildModeButton(
+                  icon: Icons.grid_view_rounded,
+                  label: '4장',
+                  isSelected: _selectedType == 4,
+                  onTap: () => setState(() => _selectedType = 4),
                 ),
               ],
             ),
+            const SizedBox(height: 48),
+            _buildStartButton(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBrand() {
+    return RichText(
+      text: const TextSpan(
+        style: TextStyle(
+          fontSize: 76,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 2,
+          height: 1.0,
+        ),
+        children: [
+          TextSpan(text: 'Ubu', style: TextStyle(color: Colors.white)),
+          TextSpan(text: '4', style: TextStyle(color: kBoothAccent)),
+          TextSpan(text: 'Cut', style: TextStyle(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTagline() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.5),
+      ),
+      child: const Text(
+        '즉석 네컷사진',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStartButton() {
+    return SizedBox(
+      width: 340,
+      height: 88,
+      child: ElevatedButton.icon(
+        onPressed: () {
+          Get.toNamed('/take-picture-page', arguments: _selectedType);
+        },
+        icon: const Icon(Icons.camera_alt_rounded, size: 30),
+        label: const Text(
+          '사진 촬영 시작',
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: kBoothAccent,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
           ),
+          elevation: 10,
+          shadowColor: kBoothAccentDark.withOpacity(0.6),
         ),
       ),
     );
@@ -150,23 +148,24 @@ class _HomePageState extends State<HomePage> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 160,
-        height: 160,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 168,
+        height: 168,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.orange[600] : Colors.grey[200],
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? kBoothAccent : Colors.white.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSelected ? Colors.orange[800]! : Colors.grey[400]!,
-            width: 3,
+            color: isSelected ? Colors.white : Colors.white.withOpacity(0.4),
+            width: isSelected ? 3 : 2,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.orange.withOpacity(0.5),
-                    spreadRadius: 2,
-                    blurRadius: 10,
-                    offset: Offset(0, 5),
+                    color: kBoothAccent.withOpacity(0.5),
+                    spreadRadius: 1,
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
                   ),
                 ]
               : null,
@@ -176,16 +175,16 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(
               icon,
-              size: 64,
-              color: isSelected ? Colors.white : Colors.grey[600],
+              size: 66,
+              color: Colors.white.withOpacity(isSelected ? 1 : 0.85),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
               label,
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? Colors.white : Colors.grey[700],
+                color: Colors.white.withOpacity(isSelected ? 1 : 0.85),
               ),
             ),
           ],

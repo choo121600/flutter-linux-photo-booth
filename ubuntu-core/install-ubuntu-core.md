@@ -112,13 +112,55 @@ echo "$WAYLAND_DISPLAY"           # wayland-0 under the kiosk
 snap restart ubuntu-frame         # re-apply Frame changes
 ```
 
-- **Orientation:** rotate the UI **in-app** with `BOOTH_PORTRAIT=1` (and
-  `BOOTH_PORTRAIT_TURNS=1|3`). Do not rotate the Frame output — display rotation breaks
-  touch grab/mapping on Frame's Mir, which is why the booth rotates its widget tree instead.
+- **Orientation:** rotate via **Ubuntu Frame's output orientation**, NOT in-app. An in-app
+  (RotatedBox) rotation turns the picture but not the incoming touch coordinates on Frame's
+  Mir, so taps land in the wrong place; Frame output rotation turns display + touch together.
+  Set it to match the physical mount, then restart Frame:
+  `sudo snap set ubuntu-frame display='…orientation: left'` (normal|right|inverted|left) →
+  `sudo snap restart ubuntu-frame`.
+- **Hide the mouse pointer:** on a touch-only kiosk Frame otherwise renders a
+  pointer parked at the top-left (0,0). Disable it (the value is `null`, **not**
+  `none`): `sudo snap set ubuntu-frame config='cursor=null'` →
+  `sudo snap restart ubuntu-frame`.
 - **Display placement/output config** is configured through Ubuntu Frame's own configuration
   (see the [Ubuntu Frame docs](https://snapcraft.io/ubuntu-frame)), not through invented
   `daemon.*` keys.
 
+### Touch input reliability (USB re-enumeration watchdog)
+
+Some USB touchscreens (e.g. the **G2Touch** panel, `2a94:736d`) link at USB
+full-speed (12 Mbps) and **re-enumerate intermittently**. Each re-enumeration
+drops touch for a few seconds; occasionally Frame (re)starts while the device is
+mid-re-enumeration and then holds the event node *without* configuring it as a
+touchscreen — touch is silently dead until Frame is restarted.
+
+```bash
+# Is the device flapping? (device number keeps climbing = re-enumerating)
+sudo dmesg | grep -E 'usb .*: (USB disconnect|new .*-speed)' | tail
+# Did Frame actually configure the touchscreen (not just open the fd)?
+snap logs ubuntu-frame | grep -a G2Touch | tail    # want: capabilities={touchscreen}
+```
+
+The **real fix is physical** — the link is marginal, so route the panel through a
+**powered USB 2.0 hub** and/or use a shorter/better cable on a **USB 2.0 (black)
+port**. Confirm on another host: if it re-enumerates on a laptop too, the
+monitor/cable is faulty rather than the Pi.
+
+As a **safety net** (auto-recovers touch with no human at the kiosk), install the
+watchdog. It restarts Frame only when touch is genuinely lost — the event node is
+unheld, or Frame's last input transition for the device was a removal — and
+verifies the touchscreen re-registers afterwards:
+
+```bash
+sudo cp ubuntu-core/ubu4cut-touch-wd.sh /root/ubu4cut-touch-wd.sh
+sudo chmod +x /root/ubu4cut-touch-wd.sh
+sudo cp ubuntu-core/ubu4cut-touch-wd.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ubu4cut-touch-wd.service
+journalctl -u ubu4cut-touch-wd.service -f          # watch it act
+```
+
+The watchdog is a workaround, not a substitute for stabilising the USB link.
 ## 6. Camera (USB UVC + Raspberry Pi CSI)
 
 `run-booth` auto-detects the source at launch: a genuine USB UVC node becomes `v4l2src`,
@@ -212,6 +254,7 @@ revisions so a bad refresh can be reverted.
 | Kiosk not autostarting | `snap services ubu4cut` (is `ubu4cut-kiosk` enabled/active?), re-run `snap start --enable ubu4cut.ubu4cut-kiosk` |
 | Print does nothing | `lpstat -p`, default set via `lpadmin -d`, Printer Application installed |
 | Interface missing | `snap connections ubu4cut` → connect `camera` / `cups` / `wayland` |
+| Touch intermittent / dead after a while | `sudo dmesg \| grep -E 'usb.*(disconnect\|new .*-speed)'` (re-enumerating?), `snap logs ubuntu-frame \| grep -a G2Touch` (touchscreen configured?); install the touch watchdog (§5), stabilise the USB link with a powered USB 2.0 hub |
 
 ## Support & references
 
