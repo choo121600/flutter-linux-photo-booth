@@ -57,7 +57,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
-        fontFamily: 'NotoSansKR',
+        fontFamily: 'Ubuntu',
+        fontFamilyFallback: const ['NotoSansKR'],
         // Touch-kiosk sizing: large, finger-friendly buttons everywhere so taps
         // don't miss. Individual buttons may still override via their own style.
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -65,7 +66,7 @@ class MyApp extends StatelessWidget {
             minimumSize: const Size(220, 72),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
             textStyle: const TextStyle(
-                fontFamily: 'NotoSansKR',
+                fontFamily: 'Ubuntu',
                 fontSize: 22,
                 fontWeight: FontWeight.bold),
             shape: RoundedRectangleBorder(
@@ -78,7 +79,7 @@ class MyApp extends StatelessWidget {
             minimumSize: const Size(200, 64),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             textStyle: const TextStyle(
-                fontFamily: 'NotoSansKR',
+                fontFamily: 'Ubuntu',
                 fontSize: 20,
                 fontWeight: FontWeight.bold),
           ),

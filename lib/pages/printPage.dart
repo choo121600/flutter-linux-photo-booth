@@ -76,7 +76,7 @@ class _PrintPageState extends State<PrintPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              '미리보기',
+              'Preview',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 28,
@@ -129,7 +129,7 @@ class _PrintPageState extends State<PrintPage> {
                     },
                     icon: const Icon(Icons.home_rounded, size: 28),
                     label: const Text(
-                      '처음으로',
+                      'Home',
                       style:
                           TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                     ),
@@ -154,7 +154,7 @@ class _PrintPageState extends State<PrintPage> {
                         : _printImage,
                     icon: const Icon(Icons.print_rounded, size: 30),
                     label: Text(
-                      _printing ? '인쇄 중…' : '인쇄하기',
+                      _printing ? 'Printing…' : 'Print',
                       style: const TextStyle(
                           fontSize: 24, fontWeight: FontWeight.bold),
                     ),
