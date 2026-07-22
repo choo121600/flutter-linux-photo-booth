@@ -118,6 +118,10 @@ snap restart ubuntu-frame         # re-apply Frame changes
   Set it to match the physical mount, then restart Frame:
   `sudo snap set ubuntu-frame display='…orientation: left'` (normal|right|inverted|left) →
   `sudo snap restart ubuntu-frame`.
+- **Hide the mouse pointer:** on a touch-only kiosk Frame otherwise renders a
+  pointer parked at the top-left (0,0). Disable it (the value is `null`, **not**
+  `none`): `sudo snap set ubuntu-frame config='cursor=null'` →
+  `sudo snap restart ubuntu-frame`.
 - **Display placement/output config** is configured through Ubuntu Frame's own configuration
   (see the [Ubuntu Frame docs](https://snapcraft.io/ubuntu-frame)), not through invented
   `daemon.*` keys.
