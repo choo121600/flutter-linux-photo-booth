@@ -1,5 +1,7 @@
 # Ubu4Cut
 
+[![CI](https://github.com/choo121600/flutter-linux-photo-booth/actions/workflows/ci.yml/badge.svg)](https://github.com/choo121600/flutter-linux-photo-booth/actions/workflows/ci.yml)
+
 **Ubu4Cut** is an Ubuntu-based four-cut (네컷) photo booth for touch kiosks. It ships as a
 single Flutter/GTK **snap** that autostarts under **Ubuntu Frame** on **Ubuntu Core**
 (Raspberry Pi 5) and also launches manually on **Ubuntu Desktop**. Point-and-shoot capture,
@@ -14,7 +16,7 @@ installations.
 
 ## Features
 
-- **Two capture layouts** — 1-cut (`1장`) and 4-cut (`4장`), each with a live countdown.
+- **Two capture layouts** — 1-cut and 4-cut, each with a live countdown.
 - **Real-time preview** via GStreamer — USB UVC (`v4l2src`) and Raspberry Pi CSI
   (`libcamerasrc`, PiSP) are auto-detected at launch.
 - **Frame overlays** composited onto the captured shots before printing.
@@ -117,10 +119,10 @@ server.
 
 - Install CUPS and a **driverless-IPP Printer Application** for the dye-sub, e.g.
   `gutenprint-printer-app` (`setup-ubuntu-core.sh` installs both).
-- Set the default printer once it is detected:
+- `setup-ubuntu-core.sh` auto-registers a connected USB printer; verify or adjust:
   ```bash
-  lpstat -p                  # via the cups snap
-  sudo lpadmin -d <printer>  # or the CUPS web UI at http://localhost:631
+  cups.lpstat -p -d              # printer + default (via the cups snap)
+  sudo cups.lpadmin -d <printer> # or the CUPS web UI at http://localhost:631
   ```
 - Configure photo media (defaults: **4×6 borderless**):
   ```bash
@@ -151,9 +153,10 @@ Runtime-tunable at startup, no rebuild required:
 | Variable | Default | Effect |
 |---|---|---|
 | `BOOTH_TAP_GUARD_MS` | `300` | Post-transition input guard; `0` disables it. |
-| `BOOTH_PREVIEW_WIDTH` / `BOOTH_PREVIEW_HEIGHT` | `525` / `700` | Preview & capture box size. |
+| `BOOTH_PREVIEW_WIDTH` / `BOOTH_PREVIEW_HEIGHT` | `660` / `880` | Preview & capture box size. |
 | `BOOTH_CAMERA_KIND` / `DEFAULT_CAMERA_DEVICE` | auto | Override camera detection. |
 | `BOOTH_PRINT_MEDIA` / `BOOTH_PRINT_BORDERLESS` | `4x6` / `true` | Set via `snap set … print.*`. |
+| `BOOTH_PRINT_WAIT_SEC` | `45` | Seconds the "Printing…" overlay blocks input (covers the print). |
 | `BOOTH_AUTOSTART_CAMERA` | unset | Test hook: auto-open the camera page. Off in production. |
 
 `print.media` / `print.borderless` are exposed as snap config (`snap set ubu4cut …`); the
@@ -206,14 +209,14 @@ Notes:
 ```
 ubu4cut/
 ├── lib/
-│   ├── main.dart                 # App entry: routes, theme, whole-UI rotation
-│   ├── controllers/              # GetX controllers (image buffer, orientation)
+│   ├── main.dart                 # App entry: routes + theme
+│   ├── controllers/              # GetX controller (captured-image buffer)
 │   ├── pages/                    # home / take-picture / print
-│   ├── widgets/                  # tapGuard (post-transition input guard)
+│   ├── widgets/                  # booth_scaffold, tap_guard (input guard)
 │   └── helpers/                  # frame-overlay compositing
 ├── assets/
-│   ├── images/                   # frame templates + test images
-│   └── backgrounds/              # UI backgrounds
+│   ├── images/                   # four-cut frame template
+│   └── fonts/                    # Ubuntu (+ Noto Sans KR fallback)
 ├── snap/
 │   ├── snapcraft.yaml            # snap (gnome ext, libcamera-from-source, dual apps)
 │   ├── hooks/configure           # print.media / print.borderless -> env
