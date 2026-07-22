@@ -73,6 +73,11 @@ else
     "$PRINTER_APP_SNAP" add -d "$PRINTER_NAME" -v "$DEV_URI" -m "$PRINTER_DRIVER" \
         || echo "  (printer-app add failed; check PRINTER_DRIVER=$PRINTER_DRIVER)"
     "$PRINTER_APP_SNAP" default -d "$PRINTER_NAME" 2>/dev/null || true
+    # Default to colour output. The driverless cups queue created below inherits
+    # the Printer Application's print-color-mode; dye-subs otherwise come out
+    # greyscale because the "auto" default maps to a Gray ColorModel.
+    "$PRINTER_APP_SNAP" modify -d "$PRINTER_NAME" \
+        -o print-color-mode=color -o color-model=rgb-color 2>/dev/null || true
     PAPP_URI="ipp://localhost:${PRINTER_APP_PORT}/ipp/print/${PRINTER_NAME}"
     cups.lpadmin -p "$PRINTER_NAME" -E -v "$PAPP_URI" -m everywhere \
         || echo "  (cups bridge failed; is the Printer Application on :$PRINTER_APP_PORT ?)"

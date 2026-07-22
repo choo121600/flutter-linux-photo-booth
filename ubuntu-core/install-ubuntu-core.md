@@ -210,6 +210,7 @@ sudo cups.lpstat -W all -o                   # jobs (completed/aborted)
 
 # Register manually (Canon SELPHY CP1500 uses the protocol-compatible CP1300 driver):
 sudo gutenprint-printer-app add -d SELPHY -v '<usb-uri>' -m canon--selphy-cp-1300--en
+sudo gutenprint-printer-app modify -d SELPHY -o print-color-mode=color -o color-model=rgb-color
 sudo cups.lpadmin -p SELPHY -E -v ipp://localhost:8000/ipp/print/SELPHY -m everywhere
 sudo cups.lpadmin -d SELPHY
 ```
@@ -224,6 +225,20 @@ sudo cups.ipptool -tv ipp://localhost:8000/ipp/print/SELPHY get-printer-attribut
   | awk '/media-default \(keyword\)/{print $NF}'      # → om_postcard_105.66x158.5mm
 sudo snap set ubu4cut print.media=om_postcard_105.66x158.5mm print.borderless=true
 sudo snap restart ubu4cut.ubu4cut-kiosk               # media is read at app launch
+```
+
+**Colour, not greyscale.** The driverless cups queue inherits the Printer
+Application's `print-color-mode`; if that stays `auto` the queue defaults to a
+Gray `ColorModel` and dye-sub prints come out greyscale. Set the Printer
+Application to colour **before** creating the queue (recreate it if it already
+exists, so it re-reads the default):
+
+```bash
+sudo gutenprint-printer-app modify -d SELPHY -o print-color-mode=color -o color-model=rgb-color
+sudo cups.lpadmin -x SELPHY   # drop, then re-add so the queue inherits colour
+sudo cups.lpadmin -p SELPHY -E -v ipp://localhost:8000/ipp/print/SELPHY -m everywhere
+sudo cups.lpadmin -d SELPHY
+sudo cups.lpoptions -p SELPHY -l | grep ColorModel   # expect: Gray *RGB
 ```
 
 `print.media` / `print.borderless` are read by the `configure` hook into
@@ -275,6 +290,7 @@ revisions so a bad refresh can be reverted.
 | Preview shows test pattern / black | `snap logs ubu4cut \| grep Camera:`, `ls /dev/media*`, reconnect `ubu4cut:camera` |
 | Kiosk not autostarting | `snap services ubu4cut` (is `ubu4cut-kiosk` enabled/active?), re-run `snap start --enable ubu4cut.ubu4cut-kiosk` |
 | Print "sent" but nothing prints | `sudo cups.lpstat -W all -o` + cupsd `error_log` → usually a media mismatch (*"cannot print with supplied options"*); set `print.media` to the printer's `media-default` (§7) |
+| Prints in greyscale | driverless queue defaults to Gray; set the Printer App to colour (`gutenprint-printer-app modify -d <p> -o print-color-mode=color`) then **recreate** the cups queue so `cups.lpoptions -p <p> -l` shows `Gray *RGB` (§7) |
 | Interface missing | `snap connections ubu4cut` → connect `camera` / `cups` / `wayland` |
 | Touch intermittent / dead after a while | `sudo dmesg \| grep -E 'usb.*(disconnect\|new .*-speed)'` (re-enumerating?), `snap logs ubuntu-frame \| grep -a G2Touch` (touchscreen configured?); install the touch watchdog (§5), stabilise the USB link with a powered USB 2.0 hub |
 
