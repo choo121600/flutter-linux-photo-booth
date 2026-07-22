@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:io';
 
-import '../widgets/boothScaffold.dart';
+import '../widgets/booth_scaffold.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -99,9 +99,10 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.14),
+        color: Colors.white.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.35), width: 1.5),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.5),
       ),
       child: const Text(
         'Instant Photo Booth',
@@ -135,7 +136,7 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(22),
           ),
           elevation: 10,
-          shadowColor: kBoothAccentDark.withOpacity(0.6),
+          shadowColor: kBoothAccentDark.withValues(alpha: 0.6),
         ),
       ),
     );
@@ -154,16 +155,18 @@ class _HomePageState extends State<HomePage> {
         width: 168,
         height: 168,
         decoration: BoxDecoration(
-          color: isSelected ? kBoothAccent : Colors.white.withOpacity(0.12),
+          color:
+              isSelected ? kBoothAccent : Colors.white.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSelected ? Colors.white : Colors.white.withOpacity(0.4),
+            color:
+                isSelected ? Colors.white : Colors.white.withValues(alpha: 0.4),
             width: isSelected ? 3 : 2,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: kBoothAccent.withOpacity(0.5),
+                    color: kBoothAccent.withValues(alpha: 0.5),
                     spreadRadius: 1,
                     blurRadius: 18,
                     offset: const Offset(0, 6),
@@ -177,7 +180,7 @@ class _HomePageState extends State<HomePage> {
             Icon(
               icon,
               size: 66,
-              color: Colors.white.withOpacity(isSelected ? 1 : 0.85),
+              color: Colors.white.withValues(alpha: isSelected ? 1 : 0.85),
             ),
             const SizedBox(height: 12),
             Text(
@@ -185,7 +188,7 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white.withOpacity(isSelected ? 1 : 0.85),
+                color: Colors.white.withValues(alpha: isSelected ? 1 : 0.85),
               ),
             ),
           ],

@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,10 +5,10 @@ import 'package:flutter/services.dart';
 Future<ByteData> createOverlayImage({
   required ByteData backgroundImage,
   required List<ByteData> overlayImages,
-  double firstRowTopSpacing = 0, // 1행의 위쪽 여백
-  double firstColumnLeftSpacing = 0, // 1열의 왼쪽 여백
-  double secondColumnLeftSpacing = 0, // 2번째 열의 왼쪽 여백
-  double secondRowTopSpacing = 0, // 2행의 위쪽 여백
+  double firstRowTopSpacing = 0, // row 1 top
+  double firstColumnLeftSpacing = 0, // column 1 left
+  double secondColumnLeftSpacing = 0, // column 2 left
+  double secondRowTopSpacing = 0, // row 2 top
 }) async {
   final ui.Image background =
       await _decodeImageFromList(backgroundImage.buffer.asUint8List());
@@ -40,10 +39,10 @@ Future<ui.Image> _drawImages({
   required List<ByteData> overlayImages,
   required double maxWidth,
   required double maxHeight,
-  required double firstRowTopSpacing, // 1행의 위쪽 여백
-  required double firstColumnLeftSpacing, // 1열의 왼쪽 여백
-  required double secondColumnLeftSpacing, // 2번째 열의 왼쪽 여백
-  required double secondRowTopSpacing, // 2행의 위쪽 여백
+  required double firstRowTopSpacing, // row 1 top
+  required double firstColumnLeftSpacing, // column 1 left
+  required double secondColumnLeftSpacing, // column 2 left
+  required double secondRowTopSpacing, // row 2 top
 }) async {
   final ui.PictureRecorder recorder = ui.PictureRecorder();
   final ui.Canvas canvas = ui.Canvas(recorder);
@@ -54,15 +53,16 @@ Future<ui.Image> _drawImages({
   final double overlayWidth = background.width / 2;
   final double overlayHeight = background.height / 2;
 
-  double startX = firstColumnLeftSpacing; // 60
-  double startY = firstRowTopSpacing; // 226
+  double startX = firstColumnLeftSpacing;
+  double startY = firstRowTopSpacing;
   int colCount = 2;
 
   if (overlayImages.length == 1) {
     final ByteData overlayData = overlayImages[0];
     final ui.Image overlay =
         await _decodeImageFromList(overlayData.buffer.asUint8List());
-    final ui.Image resizedOverlay = await _resizeImage(overlay, _kSinglePhotoWidth, _kSinglePhotoHeight);
+    final ui.Image resizedOverlay =
+        await _resizeImage(overlay, _kSinglePhotoWidth, _kSinglePhotoHeight);
 
     final double overlayX = startX;
     final double overlayY = startY;
@@ -80,22 +80,22 @@ Future<ui.Image> _drawImages({
           await _decodeImageFromList(overlayData.buffer.asUint8List());
 
       if ((i + 1) < 3) {
-        // 1헹
+        // row 1
         if ((i + 1) % colCount == 0) {
-          // 2열
+          // column 2
           startX = overlayWidth + secondColumnLeftSpacing;
         } else {
-          // 1열
+          // column 1
           startX = firstColumnLeftSpacing;
         }
       } else {
-        // 2행
+        // row 2
         startY = overlayHeight + secondRowTopSpacing;
         if ((i + 1) % colCount == 0) {
-          // 2열
+          // column 2
           startX = overlayWidth + secondColumnLeftSpacing;
         } else {
-          // 1열
+          // column 1
           startX = firstColumnLeftSpacing;
         }
       }
@@ -124,7 +124,7 @@ Future<ui.Image> _resizeImage(ui.Image image, int width, int height) async {
   final ui.Canvas canvas = ui.Canvas(
       recorder,
       Rect.fromPoints(
-          Offset(0, 0), Offset(width.toDouble(), height.toDouble())));
+          const Offset(0, 0), Offset(width.toDouble(), height.toDouble())));
 
   final ui.Rect srcRect =
       Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());

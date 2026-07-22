@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 class TapGuard extends StatefulWidget {
   final Widget child;
 
-  const TapGuard({Key? key, required this.child}) : super(key: key);
+  const TapGuard({super.key, required this.child});
 
   static Duration get guardDuration {
     final ms = int.tryParse(Platform.environment['BOOTH_TAP_GUARD_MS'] ?? '');

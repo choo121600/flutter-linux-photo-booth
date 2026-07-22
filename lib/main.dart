@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
-import 'pages/homePage.dart';
-import 'pages/takePicturePage.dart';
-import 'pages/printPage.dart';
-import 'widgets/tapGuard.dart';
+import 'pages/home_page.dart';
+import 'pages/take_picture_page.dart';
+import 'pages/print_page.dart';
+import 'widgets/tap_guard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +29,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -1,12 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import '../controllers/imageController.dart';
+import '../controllers/image_controller.dart';
 import '../helpers/images_overlay_helper.dart';
-import '../widgets/boothScaffold.dart';
+import '../widgets/booth_scaffold.dart';
 
 // Print media comes from the snap `configure` hook via env
 // (BOOTH_PRINT_MEDIA / BOOTH_PRINT_BORDERLESS); defaults suit dye-sub 4x6.
@@ -30,10 +29,10 @@ int get _printWaitSec {
 }
 
 class PrintPage extends StatefulWidget {
-  const PrintPage({Key? key}) : super(key: key);
+  const PrintPage({super.key});
 
   @override
-  _PrintPageState createState() => _PrintPageState();
+  State<PrintPage> createState() => _PrintPageState();
 }
 
 class _PrintPageState extends State<PrintPage> {
@@ -57,10 +56,10 @@ class _PrintPageState extends State<PrintPage> {
       final ByteData combinedImage = await createOverlayImage(
         backgroundImage: backgroundImage,
         overlayImages: overlayImages,
-        firstRowTopSpacing: 226, // 1행의 위쪽 여백
-        firstColumnLeftSpacing: 60, // 1열의 왼쪽 여백
-        secondColumnLeftSpacing: 15, // 2번째 열의 왼쪽 여백
-        secondRowTopSpacing: 65, // 2행의 위쪽 여백
+        firstRowTopSpacing: 226, // row 1 top margin
+        firstColumnLeftSpacing: 60, // column 1 left margin
+        secondColumnLeftSpacing: 15, // column 2 left margin
+        secondRowTopSpacing: 65, // row 2 top margin
       );
 
       if (mounted) {
@@ -102,7 +101,7 @@ class _PrintPageState extends State<PrintPage> {
                       border: Border.all(color: Colors.white, width: 4),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.35),
+                          color: Colors.black.withValues(alpha: 0.35),
                           blurRadius: 24,
                           offset: const Offset(0, 10),
                         ),
@@ -145,7 +144,7 @@ class _PrintPageState extends State<PrintPage> {
                               fontSize: 22, fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white.withOpacity(0.16),
+                          backgroundColor: Colors.white.withValues(alpha: 0.16),
                           foregroundColor: Colors.white,
                           elevation: 0,
                           side: const BorderSide(
@@ -191,7 +190,7 @@ class _PrintPageState extends State<PrintPage> {
     );
   }
 
-  /// 메모리에서 합성한 PNG를 CUPS `lp`로 직접 인쇄합니다 (로컬 HTTP 서버 없음).
+  /// Prints the composited PNG directly via the CUPS `lp` client (no local server).
   void _printImage() async {
     if (_combinedImageData == null || _printing) {
       if (_combinedImageData == null) _showMessage('No image to print');
@@ -202,7 +201,7 @@ class _PrintPageState extends State<PrintPage> {
     bool printed = false;
     File? tempFile;
     try {
-      // 합성 PNG를 임시 파일로 저장 (스냅: $SNAP_USER_COMMON, 아니면 시스템 임시).
+      // Write the PNG to a temp file ($SNAP_USER_COMMON in the snap, else system temp).
       final Uint8List imageBytes = _combinedImageData!.buffer.asUint8List();
       final String baseDir =
           Platform.environment['SNAP_USER_COMMON'] ?? Directory.systemTemp.path;
@@ -210,9 +209,7 @@ class _PrintPageState extends State<PrintPage> {
           File('$baseDir/ubu4cut_${DateTime.now().millisecondsSinceEpoch}.png');
       await tempFile.writeAsBytes(imageBytes, flush: true);
 
-      // CUPS `lp`로 기본 프린터에 인쇄. media/borderless는 스냅 설정(env)에서.
-      // 참고: cups 인터페이스는 cups 스냅 소켓(/var/cups/cups.sock)으로 연결되며,
-      // PNG->raster 필터가 프린터 앱(gutenprint-printer-app)에 있어야 함.
+      // Print to the default printer via CUPS `lp`; media/borderless from snap config.
       final List<String> args = <String>[
         '-o',
         'media=$_printMedia',
@@ -263,11 +260,11 @@ class _PrintPageState extends State<PrintPage> {
       child: AbsorbPointer(
         absorbing: true,
         child: Container(
-          color: Colors.black.withOpacity(0.72),
+          color: Colors.black.withValues(alpha: 0.72),
           alignment: Alignment.center,
-          child: Column(
+          child: const Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               SizedBox(
                 width: 84,
                 height: 84,
@@ -323,7 +320,7 @@ class _PrintPageState extends State<PrintPage> {
     }
   }
 
-  /// 사용자에게 메시지를 표시합니다
+  /// Shows a transient message to the user.
   void _showMessage(String message) {
     if (mounted) {
       // Collapse any queued snackbars first: repeated failed prints used to
