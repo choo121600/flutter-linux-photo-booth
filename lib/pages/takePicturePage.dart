@@ -326,10 +326,16 @@ class _TakePicturePageState extends State<TakePicturePage>
     
     // 카메라가 초기화되면 실제 GStreamer 위젯 표시
     try {
-      return GstPlayer(
-        pipeline: _getCameraPipeline(),
-        width: kPreviewWidth,
-        height: kPreviewHeight,
+      // Mirror the live view horizontally so posing feels like a mirror. The
+      // capture reads this same flipped render tree via the RepaintBoundary, so
+      // the saved/printed photo matches what the user saw.
+      return Transform.flip(
+        flipX: true,
+        child: GstPlayer(
+          pipeline: _getCameraPipeline(),
+          width: kPreviewWidth,
+          height: kPreviewHeight,
+        ),
       );
     } catch (e) {
       debugPrint('GStreamer initialization error: $e');
