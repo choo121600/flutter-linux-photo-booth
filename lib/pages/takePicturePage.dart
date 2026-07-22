@@ -20,11 +20,11 @@ class _TakePicturePageState extends State<TakePicturePage>
     with TickerProviderStateMixin {
   // Preview (and captured photo) box. Tunable at runtime via env so the framing
   // can be dialed in without a rebuild — a wider box crops less of the camera's
-  // 4:3 field of view. Defaults keep the original 3:4 portrait.
+  // 4:3 field of view. Large 3:4 portrait default so the live view is prominent.
   static final double kPreviewWidth =
-      double.tryParse(Platform.environment['BOOTH_PREVIEW_WIDTH'] ?? '') ?? 525.0;
+      double.tryParse(Platform.environment['BOOTH_PREVIEW_WIDTH'] ?? '') ?? 660.0;
   static final double kPreviewHeight =
-      double.tryParse(Platform.environment['BOOTH_PREVIEW_HEIGHT'] ?? '') ?? 700.0;
+      double.tryParse(Platform.environment['BOOTH_PREVIEW_HEIGHT'] ?? '') ?? 880.0;
 
   final ImageController imageController = Get.put(ImageController());
   final GlobalKey cameraKey = GlobalKey();
@@ -91,8 +91,12 @@ class _TakePicturePageState extends State<TakePicturePage>
     return BoothScaffold(
       showBack: true,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
+          // Bias the live view toward the top: the physical camera sits at the
+          // top of the kiosk, so a higher, larger preview keeps eye contact
+          // natural (and the framed portrait dominates the screen).
+          const SizedBox(height: 150),
           // Progress counter
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
