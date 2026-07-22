@@ -192,21 +192,43 @@ full KMS — go back to [`gadget-camera-kms.md`](gadget-camera-kms.md).
 ## 7. Printing (CUPS + `lp`)
 
 The app composites the four-cut PNG in memory and prints it with the CUPS `lp` client — there
-is no bundled print server. A **Printer Application** (driverless IPP) provides the PNG→raster
-driver for the dye-sub.
+is no bundled print server. Two snaps make up the stack (both installed + wired by
+`setup-ubuntu-core.sh`, which also auto-registers the printer):
+
+- **`cups`** — the CUPS server the booth's `lp` reaches through the `cups` interface.
+- **`gutenprint-printer-app`** — a Printer Application (pappl, listens on `:8000`) that drives
+  the USB dye-sub with a Gutenprint driver and re-exports it as driverless IPP.
+
+`cups` does not auto-discover the Printer Application, so its printer is bridged into `cups`
+as an IPP-Everywhere queue and made the default. The host has no bare `lp*`/`lpadmin` — use
+the cups snap's (`cups.lpstat`, `cups.lpadmin`).
 
 ```bash
-lpstat -p                                    # is the printer discovered?
-sudo lpadmin -d <printer>                    # set the default (or use http://localhost:631)
-snap set ubu4cut print.media=4x6 print.borderless=true
+gutenprint-printer-app devices               # USB printers seen (usb://…)
+sudo cups.lpstat -p -d                       # cups queue + default
+sudo cups.lpstat -W all -o                   # jobs (completed/aborted)
 
-# Diagnose a failed job:
-snap logs ubu4cut
-lpstat -W all
+# Register manually (Canon SELPHY CP1500 uses the protocol-compatible CP1300 driver):
+sudo gutenprint-printer-app add -d SELPHY -v '<usb-uri>' -m canon--selphy-cp-1300--en
+sudo cups.lpadmin -p SELPHY -E -v ipp://localhost:8000/ipp/print/SELPHY -m everywhere
+sudo cups.lpadmin -d SELPHY
+```
+
+**Media must match the printer**, or the job is accepted (`lp` returns 0, the app shows
+"sent") but fails at print time with *"cannot print with supplied options"* and nothing comes
+out. The generic `4x6` (101.6×152.4 mm) is **not** a SELPHY size — it loads
+`om_postcard_105.66x158.5mm`. Set `print.media` to the printer's own `media-default`:
+
+```bash
+sudo cups.ipptool -tv ipp://localhost:8000/ipp/print/SELPHY get-printer-attributes.test \
+  | awk '/media-default \(keyword\)/{print $NF}'      # → om_postcard_105.66x158.5mm
+sudo snap set ubu4cut print.media=om_postcard_105.66x158.5mm print.borderless=true
+sudo snap restart ubu4cut.ubu4cut-kiosk               # media is read at app launch
 ```
 
 `print.media` / `print.borderless` are read by the `configure` hook into
 `$SNAP_DATA/print-config.env`, exported by `run-booth`, and passed to `lp` by the print page.
+
 
 ## 8. Interfaces & confinement
 
@@ -252,7 +274,7 @@ revisions so a bad refresh can be reverted.
 | Nothing on screen under Frame | `ls /dev/dri/card0` (full KMS), `snap services ubuntu-frame`, `snap logs ubu4cut.ubu4cut-kiosk` |
 | Preview shows test pattern / black | `snap logs ubu4cut \| grep Camera:`, `ls /dev/media*`, reconnect `ubu4cut:camera` |
 | Kiosk not autostarting | `snap services ubu4cut` (is `ubu4cut-kiosk` enabled/active?), re-run `snap start --enable ubu4cut.ubu4cut-kiosk` |
-| Print does nothing | `lpstat -p`, default set via `lpadmin -d`, Printer Application installed |
+| Print "sent" but nothing prints | `sudo cups.lpstat -W all -o` + cupsd `error_log` → usually a media mismatch (*"cannot print with supplied options"*); set `print.media` to the printer's `media-default` (§7) |
 | Interface missing | `snap connections ubu4cut` → connect `camera` / `cups` / `wayland` |
 | Touch intermittent / dead after a while | `sudo dmesg \| grep -E 'usb.*(disconnect\|new .*-speed)'` (re-enumerating?), `snap logs ubuntu-frame \| grep -a G2Touch` (touchscreen configured?); install the touch watchdog (§5), stabilise the USB link with a powered USB 2.0 hub |
 
