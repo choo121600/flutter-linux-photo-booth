@@ -430,9 +430,11 @@ class _TakePicturePageState extends State<TakePicturePage>
       //  * The imx219 640x480 sensor mode is a narrow-FOV CROP (looks zoomed in);
       //    capture the full-FOV binned mode (1640x1232) and scale down instead.
       //  * Scale (in NV12) BEFORE converting to RGBA: downscaling the 2MP frame
-      //    first cuts videoconvert's per-pixel work ~6x, lifting the CPU-bound
-      //    preview from ~22 to ~28 fps on a Pi 5 (measured on-device).
-      return '''libcamerasrc ! video/x-raw,format=NV12,width=1640,height=1232 ! videoscale ! video/x-raw,format=NV12,width=640,height=480 ! videoconvert ! video/x-raw,format=RGBA,width=640,height=480 ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
+      //    first cuts videoconvert's per-pixel work ~6x.
+      //  * Request framerate=40/1: the imx219 binned mode tops out near 37fps
+      //    (50/1 stalls) and without an explicit cap libcamera settles at
+      //    ~28fps. Measured on-device: 28 -> 37fps, still full FOV.
+      return '''libcamerasrc ! video/x-raw,format=NV12,width=1640,height=1232,framerate=40/1 ! videoscale ! video/x-raw,format=NV12,width=640,height=480 ! videoconvert ! video/x-raw,format=RGBA,width=640,height=480 ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
     }
     // USB UVC (v4l2).
     return '''v4l2src device=$device ! video/x-raw,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
