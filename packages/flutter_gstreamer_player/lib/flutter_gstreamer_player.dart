@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -26,11 +25,13 @@ class GstPlayerController {
     });
   }
 
-  /// Returns the latest frame as `{width, height, bytes}` (RGBA8888) or null.
-  Future<Map<Object?, Object?>?> getFrame() async {
+  /// Returns `{seq, width, height, bytes}`. `bytes` is empty when no frame
+  /// newer than [sinceSeq] exists, so callers can over-poll cheaply.
+  Future<Map<Object?, Object?>?> getFrame(int sinceSeq) async {
     if (playerId < 0) return null;
     final result = await _channel.invokeMethod('getFrame', {
       'playerId': playerId,
+      'sinceSeq': sinceSeq,
     });
     return result as Map<Object?, Object?>?;
   }
@@ -62,6 +63,7 @@ class _GstPlayerState extends State<GstPlayer> {
   Timer? _timer;
   ui.Image? _image;
   bool _busy = false;
+  int _lastSeq = -1;
 
   @override
   void initState() {
@@ -75,22 +77,31 @@ class _GstPlayerState extends State<GstPlayer> {
     } catch (e) {
       debugPrint('GstPlayer init error: $e');
     }
-    // ~15 fps preview poll.
-    _timer = Timer.periodic(const Duration(milliseconds: 66), (_) => _pull());
+    // Poll at ~50Hz. getFrame only ships pixels when a newer frame exists
+    // (see sinceSeq), so over-polling the ~37fps source is nearly free and
+    // keeps the RawImage on the freshest appsink buffer with minimal latency.
+    _timer = Timer.periodic(const Duration(milliseconds: 20), (_) => _pull());
   }
 
   Future<void> _pull() async {
     if (_busy || !mounted) return;
     _busy = true;
     try {
-      final frame = await _controller.getFrame();
+      final frame = await _controller.getFrame(_lastSeq);
       if (frame == null || !mounted) return;
+      final int seq = (frame['seq'] as int?) ?? 0;
       final int w = (frame['width'] as int?) ?? 0;
       final int h = (frame['height'] as int?) ?? 0;
       final Uint8List? bytes = frame['bytes'] as Uint8List?;
-      if (w <= 0 || h <= 0 || bytes == null || bytes.length < w * h * 4) {
+      // Nothing newer than the frame we last decoded → skip.
+      if (seq == _lastSeq ||
+          w <= 0 ||
+          h <= 0 ||
+          bytes == null ||
+          bytes.length < w * h * 4) {
         return;
       }
+      _lastSeq = seq;
       final completer = Completer<ui.Image>();
       ui.decodeImageFromPixels(
         bytes,

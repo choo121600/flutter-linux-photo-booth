@@ -27,6 +27,7 @@ struct FrameData {
   std::vector<uint8_t> bytes;
   int32_t width = 0;
   int32_t height = 0;
+  int64_t seq = 0;
   std::mutex mutex;
 };
 static std::unordered_map<int32_t, std::unique_ptr<FrameData>> g_frames;
@@ -63,6 +64,7 @@ static void flutter_gstreamer_player_plugin_handle_method_call(
         frame_data->bytes.assign(frame, frame + size);
         frame_data->width = width;
         frame_data->height = height;
+        frame_data->seq++;
       });
     }
 
@@ -72,15 +74,24 @@ static void flutter_gstreamer_player_plugin_handle_method_call(
   } else if (strcmp(method, "getFrame") == 0) {
     int32_t player_id =
         fl_value_get_int(fl_value_lookup_string(args, "playerId"));
+    // Dart passes the seq it last decoded; we ship pixel bytes only when a
+    // newer frame exists, so fast polling never re-transfers a stale frame.
+    int64_t since_seq = 0;
+    FlValue* since = fl_value_lookup_string(args, "sinceSeq");
+    if (since != nullptr && fl_value_get_type(since) == FL_VALUE_TYPE_INT) {
+      since_seq = fl_value_get_int(since);
+    }
     g_autoptr(FlValue) result = fl_value_new_map();
     auto it = g_frames.find(player_id);
     if (it != g_frames.end()) {
       std::lock_guard<std::mutex> lock(it->second->mutex);
+      fl_value_set_string_take(result, "seq",
+                               fl_value_new_int(it->second->seq));
       fl_value_set_string_take(result, "width",
                                fl_value_new_int(it->second->width));
       fl_value_set_string_take(result, "height",
                                fl_value_new_int(it->second->height));
-      if (it->second->bytes.empty()) {
+      if (it->second->bytes.empty() || it->second->seq == since_seq) {
         fl_value_set_string_take(result, "bytes",
                                  fl_value_new_uint8_list(nullptr, 0));
       } else {
@@ -90,6 +101,7 @@ static void flutter_gstreamer_player_plugin_handle_method_call(
                                     it->second->bytes.size()));
       }
     } else {
+      fl_value_set_string_take(result, "seq", fl_value_new_int(0));
       fl_value_set_string_take(result, "width", fl_value_new_int(0));
       fl_value_set_string_take(result, "height", fl_value_new_int(0));
       fl_value_set_string_take(result, "bytes",

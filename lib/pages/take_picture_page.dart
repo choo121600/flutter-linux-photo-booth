@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_gstreamer_player/flutter_gstreamer_player.dart';
 import '../controllers/image_controller.dart';
 import '../widgets/booth_scaffold.dart';
+import '../filters/camera_filters.dart';
 
 class TakePicturePage extends StatefulWidget {
   const TakePicturePage({super.key});
@@ -38,6 +39,7 @@ class _TakePicturePageState extends State<TakePicturePage>
   bool _cameraInitialized = false;
   String? _cameraError;
   late AnimationController _animationController;
+  int _filterIndex = 0;
 
   @override
   void initState() {
@@ -54,6 +56,7 @@ class _TakePicturePageState extends State<TakePicturePage>
   void _initializeCamera() async {
     try {
       await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
 
       setState(() {
         _cameraInitialized = true;
@@ -61,9 +64,11 @@ class _TakePicturePageState extends State<TakePicturePage>
 
       debugPrint('Camera initialization completed');
     } catch (e) {
-      setState(() {
-        _cameraError = 'Camera initialization failed: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _cameraError = 'Camera initialization failed: $e';
+        });
+      }
       debugPrint('Camera initialization error: $e');
     }
   }
@@ -159,7 +164,12 @@ class _TakePicturePageState extends State<TakePicturePage>
                   children: [
                     RepaintBoundary(
                       key: cameraKey,
-                      child: _buildCameraWidget(),
+                      child: _filterIndex == 0
+                          ? _buildCameraWidget()
+                          : ColorFiltered(
+                              colorFilter: kCameraFilters[_filterIndex].filter,
+                              child: _buildCameraWidget(),
+                            ),
                     ),
                     if (_takingPicture) _buildOverlay(),
                   ],
@@ -168,7 +178,7 @@ class _TakePicturePageState extends State<TakePicturePage>
             ),
           ),
           const SizedBox(height: 28),
-          if (_picturesTaken < _selectedType!)
+          if (_picturesTaken < _selectedType!) ...[
             SizedBox(
               width: 300,
               height: 84,
@@ -190,6 +200,9 @@ class _TakePicturePageState extends State<TakePicturePage>
                 ),
               ),
             ),
+            const SizedBox(height: 22),
+            _buildFilterBar(),
+          ],
           if (_picturesTaken >= _selectedType!)
             SizedBox(
               width: 320,
@@ -227,6 +240,50 @@ class _TakePicturePageState extends State<TakePicturePage>
         width: kPreviewWidth,
         height: kPreviewHeight,
         color: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        shrinkWrap: true,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: kCameraFilters.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, i) {
+          final bool selected = i == _filterIndex;
+          return GestureDetector(
+            onTap: () => setState(() => _filterIndex = i),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              decoration: BoxDecoration(
+                color: selected
+                    ? kBoothAccent
+                    : Colors.white.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: selected
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.35),
+                  width: selected ? 2 : 1.5,
+                ),
+              ),
+              child: Text(
+                kCameraFilters[i].name,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -372,8 +429,12 @@ class _TakePicturePageState extends State<TakePicturePage>
       //    unconstrained `video/x-raw` fails to negotiate — request NV12.
       //  * The imx219 640x480 sensor mode is a narrow-FOV CROP (looks zoomed in);
       //    capture the full-FOV binned mode (1640x1232) and scale down instead.
-      // Verified on-device with gst-launch.
-      return '''libcamerasrc ! video/x-raw,format=NV12,width=1640,height=1232 ! videoconvert ! videoscale ! video/x-raw,format=RGBA,width=640,height=480 ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
+      //  * Scale (in NV12) BEFORE converting to RGBA: downscaling the 2MP frame
+      //    first cuts videoconvert's per-pixel work ~6x.
+      //  * Request framerate=40/1: the imx219 binned mode tops out near 37fps
+      //    (50/1 stalls) and without an explicit cap libcamera settles at
+      //    ~28fps. Measured on-device: 28 -> 37fps, still full FOV.
+      return '''libcamerasrc ! video/x-raw,format=NV12,width=1640,height=1232,framerate=40/1 ! videoscale ! video/x-raw,format=NV12,width=640,height=480 ! videoconvert ! video/x-raw,format=RGBA,width=640,height=480 ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
     }
     // USB UVC (v4l2).
     return '''v4l2src device=$device ! video/x-raw,width=640,height=480,framerate=30/1 ! videoconvert ! video/x-raw,format=RGBA ! appsink name=sink emit-signals=true sync=false max-buffers=1 drop=true''';
