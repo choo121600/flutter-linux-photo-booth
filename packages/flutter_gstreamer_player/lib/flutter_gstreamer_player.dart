@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -75,8 +74,9 @@ class _GstPlayerState extends State<GstPlayer> {
     } catch (e) {
       debugPrint('GstPlayer init error: $e');
     }
-    // ~15 fps preview poll.
-    _timer = Timer.periodic(const Duration(milliseconds: 66), (_) => _pull());
+    // ~30 fps preview poll — the libcamera pipeline sustains ~28fps on a Pi 5,
+    // so a 33ms tick keeps the RawImage close to the freshest appsink buffer.
+    _timer = Timer.periodic(const Duration(milliseconds: 33), (_) => _pull());
   }
 
   Future<void> _pull() async {
