@@ -175,10 +175,8 @@ class _TakePicturePageState extends State<TakePicturePage>
               ),
             ),
           ),
-          const SizedBox(height: 14),
-          _buildFilterBar(),
           const SizedBox(height: 28),
-          if (_picturesTaken < _selectedType!)
+          if (_picturesTaken < _selectedType!) ...[
             SizedBox(
               width: 300,
               height: 84,
@@ -200,6 +198,9 @@ class _TakePicturePageState extends State<TakePicturePage>
                 ),
               ),
             ),
+            const SizedBox(height: 22),
+            _buildFilterBar(),
+          ],
           if (_picturesTaken >= _selectedType!)
             SizedBox(
               width: 320,
@@ -243,26 +244,26 @@ class _TakePicturePageState extends State<TakePicturePage>
 
   Widget _buildFilterBar() {
     return SizedBox(
-      height: 54,
+      height: 72,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         shrinkWrap: true,
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: kCameraFilters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, i) {
           final bool selected = i == _filterIndex;
           return GestureDetector(
             onTap: () => setState(() => _filterIndex = i),
             child: Container(
               alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               decoration: BoxDecoration(
                 color: selected
                     ? kBoothAccent
                     : Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: selected
                       ? Colors.white
@@ -274,7 +275,7 @@ class _TakePicturePageState extends State<TakePicturePage>
                 kCameraFilters[i].name,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 24,
                   fontWeight: selected ? FontWeight.bold : FontWeight.w500,
                 ),
               ),
