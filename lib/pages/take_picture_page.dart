@@ -56,6 +56,7 @@ class _TakePicturePageState extends State<TakePicturePage>
   void _initializeCamera() async {
     try {
       await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
 
       setState(() {
         _cameraInitialized = true;
@@ -63,9 +64,11 @@ class _TakePicturePageState extends State<TakePicturePage>
 
       debugPrint('Camera initialization completed');
     } catch (e) {
-      setState(() {
-        _cameraError = 'Camera initialization failed: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _cameraError = 'Camera initialization failed: $e';
+        });
+      }
       debugPrint('Camera initialization error: $e');
     }
   }
